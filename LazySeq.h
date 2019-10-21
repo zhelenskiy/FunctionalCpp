@@ -37,7 +37,7 @@ class LazyIterator;
 template<class T>
 using node = std::pair<T, LazySeq<T>>;
 template<class T>
-using node_ptr = std::shared_ptr<node<T>>;
+using node_ptr = std::optional<node<T>>;
 template<class T>
 using fabric = std::function<node_ptr<T>()>;
 template<class T>
@@ -219,8 +219,8 @@ class LazySeq {
   [[nodiscard]] constexpr LazySeq<T> remove(const T &item) const;
   [[nodiscard]] constexpr LazySeq<T> removeByIndex(const predicate<indexed_t<T>> &pred) const;
 
-  template<class R>
-  constexpr LazySeq<R> mapByNode(const std::function<node<R>(node_ptr<T>)> &f) const;
+//  template<class R>
+//  constexpr LazySeq<R> mapByNode(const std::function<node<R>(node_ptr<T>)> &f) const;
   template<class R>
   constexpr LazySeq<R> mapByNode(const std::function<node_ptr<R>(node_ptr<T>)> &f) const;
   template<class R>
@@ -427,8 +427,6 @@ class LazySeq {
   fabric_ptr<T> evaluator_;
   skip_helper_ptr_t skipHelper_ = nullptr;
 
-  constexpr bool setAndCheckIfNotEmpty(node_ptr<T> &res) const;
-
   [[nodiscard]] constexpr OrderedLazySeq<T> makeOrdered() const;
 };
 
@@ -451,14 +449,14 @@ class LazyIterator : public std::iterator<std::input_iterator_tag, T> {
 
   constexpr explicit LazyIterator<T>(const LazySeq<T> &lazySeq);
 
-  virtual ~LazyIterator() = default;
+  /*virtual*/ ~LazyIterator() noexcept = default;
 
   constexpr T operator*() const;
 
   constexpr bool operator!=(const LazyIterator<T> &other) const;
   constexpr bool operator==(const LazyIterator<T> &other) const;
 
-  LazyIterator<T> &operator=(const LazyIterator<T> &other) = default;
+  LazyIterator<T> &operator=(const LazyIterator<T> &other) noexcept = default;
 
   constexpr T operator->() const;
 

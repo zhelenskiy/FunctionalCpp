@@ -227,7 +227,7 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skipWhile(const predicate<T> &pre
 
 template<class T>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenClasses(const equivClasses<T> &classes, wide_size_t count) {
-  return classes.template mapByNode<equivClass<T>>([count](const auto &node) {
+  return classes.template mapByNode<equivClass<T>>([count](auto node) {
     if (count < node->first.size()) {
       node->first.resize(count);
       node->second = equivClasses<T>();
@@ -241,7 +241,7 @@ constexpr equivClasses<T> OrderedLazySeq<T>::getTakenClasses(const equivClasses<
 template<class T>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenWhileClasses(const equivClasses<T> &classes,
                                                                   const predicate<T> &pred) {
-  return classes.template mapByNode<equivClass<T>>([pred](const auto &node) {
+  return classes.template mapByNode<equivClass<T>>([pred](auto node) {
     wide_size_t count = 0;
     for (; count < node->first.size() && pred(node->first[count]); ++count);
     if (count < node->first.size()) {

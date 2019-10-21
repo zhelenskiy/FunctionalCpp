@@ -7,6 +7,7 @@
 #define long long long
 
 int main() {
+
   testRecursion();
   testSizesOfLazySeqs();
   std::vector<int> vec = {1, 2, 3, 4, 5, 6, 10};
@@ -112,7 +113,7 @@ void traceCollection(const Container<K, V> &container) {
 
 void testSmartSkips() {
   trace("testSmartSkips");
-  trace(identitySeq(3).skip(1000000000).take(15));
+  trace(identitySeq(3).skip(1000000000000ull).take(15));
   trace(randomNumbers(1, 10).skip(1000000000).take(15));
   trace(powersByFixedExponent<natural_t>(2).skip(1000000).take(15));
   trace(powersByFixedExponent<natural_t>(2).skip(500000).skip(500000).take(15));
