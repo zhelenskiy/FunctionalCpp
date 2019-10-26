@@ -248,7 +248,7 @@ constexpr LazyIterator<T>::LazyIterator(const LazySeq<T> &seq) : evaluated(seq.e
 
 template<class T>
 constexpr LazyIterator<T> &LazyIterator<T>::operator++() {
-  if (evaluated) {
+  if (evaluated.has_value()) {
     reassign(evaluated, evaluated->second.eval());
   }
   return *this;

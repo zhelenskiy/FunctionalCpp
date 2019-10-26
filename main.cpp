@@ -5,10 +5,9 @@
 #include "Lambdas.h"
 #include "main.h"
 
-#define long long long
+#define ll long long
 
 int main() {
-
   testRecursion();
   testSizesOfLazySeqs();
   std::vector<int> vec = {1, 2, 3, 4, 5, 6, 10};
@@ -576,8 +575,8 @@ void testDistinctUnionExceptIntersect() {
 
 void testRecursion() {
   trace("testRecursion");
-  std::function<long(long)> f;
-  f = [&](long value) { return value <= 1 ? value : value * f(value - 1); };
+  std::function<ll(ll)> f;
+  f = [&](ll value) { return value <= 1 ? value : value * f(value - 1); };
   trace(f(5));
   int done = 0;
   std::function<int(int)> recur;
@@ -607,7 +606,7 @@ LazySeq<int> testNodeConstructor(const LazySeq<T> &lazy) {
 
 void testMap(const LazySeq<int> &seq) {
   trace("testMap");
-  trace(seq.map<long>(partial(std::multiplies<int>(), 3)));
+  trace(seq.map<ll>(partial(std::multiplies<int>(), 3)));
 }
 
 LazySeq<int> testFilterRemove(const LazySeq<int> &seq) {
@@ -627,7 +626,7 @@ template<class T>
 void testReduce(const LazySeq<T> &even) {
   trace("testReduce");
   trace(even.reduce(std::plus<>()));
-  trace(even.template reduce<long>(0l, [](long a, int b) { return a * 10 + b; }));
+  trace(even.template reduce<ll>(0l, [](ll a, int b) { return a * 10 + b; }));
 }
 
 template<class T>
@@ -837,7 +836,7 @@ void testToCollectionFunctions() {
   auto unaryFunc = partial(std::multiplies<int>(), 2);
   auto keyFunc = identity<int>;
   const auto valueFunc = [](int x) {
-    auto seq1 = range<long>(1, static_cast<wide_size_t>(x));
+    auto seq1 = range<ll>(1, static_cast<wide_size_t>(x));
     return seq1.toString(" * ") + " = " + std::to_string(seq1.multiply());
   };
   const auto KeyValueFunc = [&valueFunc](int x) { return std::pair{x, valueFunc(x)}; };
