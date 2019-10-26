@@ -2,6 +2,7 @@
 #include <functional>
 
 #include "LazySeqLib.h"
+#include "Lambdas.h"
 #include "main.h"
 
 #define long long long
@@ -189,7 +190,7 @@ void testSmartSkips() {
                   naturalNumbers().groupBy(0).skip(1).take(3),
                   naturalNumbers().groupBy(3).skip(0).take(5),
                   naturalNumbers().groupBy(0).skip(0).take(3)}) {
-    trace(seq.take(10).toString<std::string>([](const auto &item) { return item.toString(); }, "\n"));
+    trace(seq.take(10).toString<std::string>(fn1(it.toString()), "\n"));
     trace();
   }
   trace(range(1, 10).butLast());
@@ -199,7 +200,7 @@ void testSmartSkips() {
   trace(range(1, 0).butLast());
   trace(range(1, 0).butLast().count());
   for (auto i: {0ull, 1ull, 100000000000ull}) {
-    trace(LazySeq<wide_size_t>([] { return infiniteRange(0ull); }).skip(i).take(10));
+    trace(LazySeq<wide_size_t>(fn0(infiniteRange(0ull))).skip(i).take(10));
   }
 }
 
@@ -247,8 +248,7 @@ void testFunctionsByIndex() {
   trace("testFunctionsByIndex");
   auto range1to5 = range(1, 5);
   auto seq = 2 * range1to5.reverse();
-  auto toString =
-      [](const auto &item) { return "[" + std::to_string(item.first) + ": " + std::to_string(item.second) + "] "; };
+  auto toString = fn1("[" + std::to_string(it.first) + ": " + std::to_string(it.second) + "] ");
   auto write = [](auto coll) {
     for (const auto &item: coll) {
       std::cout << item << ' ';
@@ -261,7 +261,7 @@ void testFunctionsByIndex() {
     }
     trace();
   };
-  std::function<int(indexed_t<int>)> value = [](auto pair) { return pair.second; };
+  std::function<int(indexed_t<int>)> value = fn1(it.second);
   std::function<indexed_t<int>(indexed_t<int>)> pairs = identity<indexed_t<int>>;
 
   write(seq.toVectorByIndex(value));
@@ -285,33 +285,29 @@ void testFunctionsByIndex() {
   trace();
   trace();
 
-  auto pred = [](auto pair) { return pair.first % 2 != 0; };
+  auto pred = fn1(it.first % 2 != 0);
   trace(seq.firstByIndex(pred));
   trace(seq.restByIndex(pred));
 
   trace(range('a', 26).filterByIndex(pred));
   trace(range('a', 20).removeByIndex(pred));
   trace();
-  trace(range('a', 15).mapByIndex<std::string>([](auto pair) { return std::string(1 + pair.first, pair.second); }));
-  trace(seq.mapManyByIndex<LazySeq<int>>([](auto pair) { return LazySeq{(int) pair.first, pair.second}; }));
-  trace(seq.mapManyByIndex<std::vector<int>>(
-      [](auto pair) { return std::vector{(int) pair.first, pair.second}; }));
-  trace(range(100, 10).mapIfByIndex([](auto pair) { return 2 * pair.second; },
-                                    [](auto pair) { return pair.first % 3 == 0; }));
+  trace(range('a', 15).mapByIndex<std::string>(fn1(std::string(1 + it.first, it.second))));
+  trace(seq.mapManyByIndex<LazySeq<int>>(fn1((LazySeq{(int) it.first, it.second}))));
+  trace(seq.mapManyByIndex<std::vector<int>>(fn1((std::vector{(int) it.first, it.second}))));
+  trace(range(100, 10).mapIfByIndex(fn1(2 * it.second), fn1(it.first % 3 == 0)));
   trace();
   range('a', 8).foreachByIndex<void>([](auto pair) { std::cout << pair.first << pair.second << ' '; });
   trace();
-  trace(range('a', 10)
-            .matchByIndex<integer_t, std::string>(integerNumbers(), [](auto pair) -> std::string {
-              return std::to_string(pair.first) + ":\t" + std::string(1, pair.second.first) + " "
-                  + std::to_string(pair.second.second) + "\n";
-            })
+  trace(range('a', 10).matchByIndex<integer_t, std::string>(integerNumbers(),
+                                                            fn1(std::to_string(it.first) + ":\t"
+                                                                    + std::string(1, it.second.first) + " "
+                                                                    + std::to_string(it.second.second) + "\n"))
             .toString(""));
   trace();
-  predicate<indexed_t<integer_t>> cond = [](auto pair) { return pair.first % 2 == 0 && pair.second < 0; };
+  predicate<indexed_t<integer_t>> cond = fn1(it.first % 2 == 0 && it.second < 0);
   for (const auto &data:
-      range(0, 3).map<LazySeq<integer_t>>([](auto start) { return integerNumbers().skip(start).take(10); })
-          * LazySeq{cond, negate(cond)}) {
+      range(0, 3).map<LazySeq<integer_t>>(fn1(integerNumbers().skip(it).take(10))) * LazySeq{cond, negate(cond)}) {
     trace(data.first);
     trace(data.first.mapByIndex(data.second));
     trace(data.first.noneByIndex(data.second));
@@ -319,20 +315,19 @@ void testFunctionsByIndex() {
     trace(data.first.everyByIndex(data.second));
   }
   trace();
-  auto smallRange = range(1, 20).map<float>([](int n) { return n / 10.; });
-  const auto differenceIsSmall = [](auto pair) { return pair.first - pair.second < 4; };
+  auto smallRange = range(1, 20).map<float>(fn1(it / 10.));
+  const auto differenceIsSmall = fn1(it.first - it.second < 4);
   trace(smallRange.takeWhileByIndex(differenceIsSmall));
   trace(smallRange.skipWhileByIndex(differenceIsSmall));
   trace(smallRange.countByIndex(differenceIsSmall));
   trace();
-  std::function<wide_size_t(indexed_t<int>)> multiplicationCriterion =
-      [](auto pair) { return (pair.first + 1) * pair.second; };
+  std::function<wide_size_t(indexed_t<int>)> multiplicationCriterion = fn1((it.first + 1) * it.second);
   trace(range1to5);
   trace(range1to5.mapByIndex(multiplicationCriterion));
   trace(range1to5.sumByIndex(multiplicationCriterion));
   trace(-range1to5.subtractByIndex(multiplicationCriterion));
   trace(range1to5.multiplyByIndex(multiplicationCriterion));
-  trace(range1to5.mapIfByIndex(constantly(720 * 720), [](auto pair) { return pair.first == 0; })
+  trace(range1to5.mapIfByIndex(constantly(720 * 720), fn1(it.first == 0))
             .divideByIndex(multiplicationCriterion));
   trace(range1to5.averageByIndex<int, float>(multiplicationCriterion));
   trace(range1to5.minByIndex(multiplicationCriterion));
@@ -342,18 +337,20 @@ void testFunctionsByIndex() {
   tracePair(range1to5.minMaxByIndex(multiplicationCriterion));
   tracePair(range1to5.minMaxByIndex<wide_size_t>(multiplicationCriterion, std::greater<>()));
   trace();
-  trace(rationalNumbers().take(36).toStringByIndex<std::string>([](auto pair) {
-    return std::to_string(pair.first + 1) + ":\t"
-        + std::to_string(pair.second.first) + "/" + std::to_string(pair.second.second);
-  }, "\n"));
+  trace(rationalNumbers()
+            .take(36)
+            .toStringByIndex<std::string>(fn1(std::to_string(it.first + 1)
+                                                  + ":\t"
+                                                  + std::to_string(it.second.first) + "/"
+                                                  + std::to_string(it.second.second)), "\n"));
   trace();
   trace(smallRange.lastByIndex(differenceIsSmall));
   trace(smallRange.butLastByIndex(differenceIsSmall));
   trace();
-  writePairs(smallRange.groupByIndexBy<int>([](auto pair) { return pair.first % 3; }));
+  writePairs(smallRange.groupByIndexBy<int>(fn1(it.first % 3)));
   writePairs(smallRange.groupByIndexBy<int, float>(
-      [](auto pair) { return pair.first % 3; },
-      [](const LazySeq<indexed_t<float>> &seq) { return seq.sum<float>([](auto t) { return t.second; }); }
+      fn1(it.first % 3),
+      [](const LazySeq<indexed_t<float>> &seq) { return seq.sum<float>(fn1(it.second)); }
   ));
   trace();
   writePairs(seq.orderByIndexBy(multiplicationCriterion));
@@ -421,12 +418,12 @@ void testIndexed() {
   trace(positiveRationalNumbers().take(15));
   trace(rationalNumbers().take(15));
   trace(rationalNumbers()
-            .filter([](rational_t r) { return r.second % 3 == 0; })
-            .takeWhile([](rational_t r) { return r.second <= 10; }));
+            .filter(fn1(it.second % 3 == 0))
+            .takeWhile(fn1(it.second <= 10)));
   trace(indexesOf(range(100, 4)));
   trace(indexesOf(std::vector(5, 100)));
-  auto seq = range('a', 10).map<std::pair<std::string, std::string>>(
-      [](char c) { return std::pair{std::string(4, c), std::string(7, c)}; });
+  auto seq = range('a', 10)
+      .map<std::pair<std::string, std::string>>(fn1((std::pair{std::string(4, it), std::string(7, it)})));
   trace(keys(seq));
   trace(values(seq));
   for (const auto &lazySeq: {powersByFixedBase<natural_t>(2), powersByFixedExponent<natural_t>(2),
@@ -470,21 +467,21 @@ void testOrder() {
   trace();
   auto range2 = range(1, 3);
   const auto range3 = (range2 * 4).match(range1);
-  auto seq1 = range3.orderBy<int>([](auto pair) { return pair.first; });
+  auto seq1 = range3.orderBy<int>(fn1(it.first));
   trace<int, int>(seq1);
-  auto seq2 = range3.orderByDescending<int>([](auto pair) { return pair.first; });
+  auto seq2 = range3.orderByDescending<int>(fn1(it.first));
   trace<int, int>(seq2);
   trace();
-  for (const auto &seq: {seq1.thenBy<int>([](auto pair) { return pair.second; }),
-                         seq1.thenByDescending<int>([](auto pair) { return pair.second; }),
-                         seq1.thenBy<int>([](auto pair) { return pair.second; }, std::greater<>()),
-                         seq1.thenByDescending<int>([](auto pair) { return pair.second; }, std::greater<>())}) {
+  for (const auto &seq: {seq1.thenBy<int>(fn1(it.second)),
+                         seq1.thenByDescending<int>(fn1(it.second)),
+                         seq1.thenBy<int>(fn1(it.second), std::greater<>()),
+                         seq1.thenByDescending<int>(fn1(it.second), std::greater<>())}) {
     trace<int, int>(seq);
     LazySeq<std::pair<int, int>> common = seq;
     trace(common);
     trace();
   }
-  auto seq3 = range(1, 12).orderBy<char>([](auto a) { return std::to_string(a)[0]; });
+  auto seq3 = range(1, 12).orderBy<char>(fn1(std::to_string(it)[0]));
   for (const auto &seq: {seq3, seq3.thenBy(), seq3.thenByDescending()}) {
     orderedTrace(seq);
     orderedTrace(seq.template map<std::string>([](int x) {
@@ -494,10 +491,10 @@ void testOrder() {
     }).thenBy());
     trace();
   }
-  auto seq4 = (square(range2) * range2).map<std::string>([](auto tuple) {
-    return std::to_string(tuple.first.first) + std::to_string(tuple.first.second) + std::to_string(tuple.second);
-  });
-  auto charGetter = [](size_t i) { return [i](const std::string &str) { return str[i]; }; };
+  auto seq4 = (square(range2) * range2).map<std::string>(fn1(std::to_string(it.first.first)
+                                                                 + std::to_string(it.first.second)
+                                                                 + std::to_string(it.second)));
+  auto charGetter = [](size_t i) { return fn1(it[i]); };
   trace(seq4);
   trace(seq4.orderByDescending<char>(charGetter(0)).thenBy<char>(charGetter(1)));
   trace(seq4.orderBy<char>(charGetter(0))
@@ -511,14 +508,14 @@ void testOrder() {
   trace();
   trace(range(1, 100000).orderByDescending().skip(49000).skip(50690));
   trace();
-  trace(range(1, 100000).orderByDescending().template map<int>(partial(std::multiplies<int>(), 2)).skip(99690));
+  trace(range(1, 100000).orderByDescending().template map<int>(partial(std::multiplies<>(), 2)).skip(99690));
   trace();
   trace(seq4.orderByDescending<char>(charGetter(0)).skip(3));
   trace(seq4.orderByDescending<char>(charGetter(0)).skip(3).thenBy());
   trace(seq4.orderByDescending<char>(charGetter(0)).skip(3).thenByDescending());
   trace(seq4.orderByDescending<char>(charGetter(0)).thenBy().skip(3));
   trace(seq4.orderByDescending<char>(charGetter(0)).thenByDescending().skip(3));
-  trace(seq4.orderBy().filter([](const auto &str) { return str[0] != '1'; }).skip(1));
+  trace(seq4.orderBy().filter(fn1(it[0] != '1')).skip(1));
   trace(seq4.orderBy().take(5));
   trace(seq4.orderBy().take(5).skip(1));
   trace(seq4.orderBy().skip(1).take(5));
@@ -543,8 +540,8 @@ void testOrder() {
 
 void testGroupBy() {
   trace("testGroupBy");
-  const auto keyFinder = [](int x) { return x % 2; };
-  const auto valueFunc = [](int x) { return x * 2; };
+  const auto keyFinder = fn1(it % 2);
+  const auto valueFunc = fn1(it * 2);
   const auto seqFunc = [](const LazySeq<int> &x) { return x.toString(""); };
   for (const auto &seq: {range(1, 10).groupBy<int>(keyFinder),
                          range(1, 10).groupBy<int, int>(keyFinder, valueFunc)}) {
@@ -655,9 +652,9 @@ void testJoinMapManyMapIf() {
   }
   trace(join(nested));
   trace(join(nestedVec));
-  trace(range(1, 5).mapMany<LazySeq<char>>([](int x) { return '\n' + x * LazySeq{'x'}; }).toString(""));
-  trace(range(1, 5).mapMany<std::vector<char>>([](int x) { return std::vector{'1', '2', 'a'}; }).toString(""));
-  trace(range(1, 10).mapIf([](int x) { return x / 2; }, even<int>));
+  trace(range(1, 5).mapMany<LazySeq<char>>(fn1('\n' + it * LazySeq{'x'})).toString(""));
+  trace(range(1, 5).mapMany<std::vector<char>>(fn1((std::vector{'1', '2', 'a'}))).toString(""));
+  trace(range(1, 10).mapIf(fn1(it / 2), even<int>));
 }
 
 void testFromInitList() {
@@ -761,16 +758,16 @@ void testMinMax() {
   trace("testMinMax");
   trace(range(1, 4).min());
   trace(range(1, 4).min(std::greater<>()));
-  trace(range(1, 4).min<float>([](int x) { return -x; }));
-  trace(range(1, 4).min<float>([](int x) { return -x; }, std::greater<>()));
+  trace(range(1, 4).min<float>(fn1(-it)));
+  trace(range(1, 4).min<float>(fn1(-it), std::greater<>()));
   trace(range(1, 4).max());
   trace(range(1, 4).max(std::greater<>()));
-  trace(range(1, 4).max<float>([](int x) { return -x; }));
-  trace(range(1, 4).max<float>([](int x) { return -x; }, std::greater<>()));
+  trace(range(1, 4).max<float>(fn1(-it)));
+  trace(range(1, 4).max<float>(fn1(-it), std::greater<>()));
   tracePair(range(1, 4).minMax());
   tracePair(range(1, 4).minMax(std::greater<>()));
-  tracePair(range(1, 4).minMax<float>([](int x) { return -x; }));
-  tracePair(range(1, 4).minMax<float>([](int x) { return -x; }, std::greater<>()));
+  tracePair(range(1, 4).minMax<float>(fn1(-it)));
+  tracePair(range(1, 4).minMax<float>(fn1(-it), std::greater<>()));
   trace();
 }
 
@@ -873,14 +870,14 @@ void testToCollectionFunctions() {
   trace("Abstract collection #2");
   traceCollection(range(1, 5).toContainerByIndex<std::map<wide_size_t, int>, std::pair<wide_size_t, int>>(
       identity<std::pair<wide_size_t, int>>));
-  traceCollection(range(1, 5).toContainerByIndex<std::map<wide_size_t, int>, wide_size_t, int>(
-      [](indexed_t<int> pair) { return pair.first; }, [](indexed_t<int> pair) { return pair.second; }));
+  traceCollection(range(1, 5)
+                      .toContainerByIndex<std::map<wide_size_t, int>, wide_size_t, int>(fn1(it.first), fn1(it.second)));
 }
 
 void testReverse() {
   trace("testReverse");
   trace(range(1, 11).reverse());
-  trace(range(1, 11).reverse<float>([](int x) { return x / 2.; }));
+  trace(range(1, 11).reverse<float>(fn1(it / 2.)));
   trace(integerNumbers().reverse<integer_t>(identity<integer_t>).reverse().take(15));
   trace(integerNumbers().reverse().reverse().take(15));
   trace(LazySeq(range(1, 10).reverse()).reverse());
@@ -906,9 +903,7 @@ void testReverse() {
 void testMakeLazyPaired() {
   trace("testMakeLazyPaired");
   auto map = std::map<int, float>{{0, 1.1}, {1, 2.2}};
-  const auto pairToString = [](std::pair<int, float> pair) {
-    return "[" + std::to_string(pair.first) + ": " + std::to_string(pair.second) + "]";
-  };
+  const auto pairToString = fn1("[" + std::to_string(it.first) + ": " + std::to_string(it.second) + "]");
   trace(makeLazy(map).map<std::string>(pairToString));
   trace(makeLazy(std::move(map)).map<std::string>(pairToString));
   trace(makeLazy(map).map<std::string>(pairToString));
