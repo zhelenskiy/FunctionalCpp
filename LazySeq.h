@@ -109,7 +109,9 @@ class LazySeq {
   constexpr LazySeq<T>(LazySeq<T> &&) noexcept = default;
   constexpr explicit LazySeq<T>(fabric_ptr<T> fabric, skip_helper_ptr_t skipHelper = nullptr);
   constexpr explicit LazySeq<T>(wide_size_t count, const T &value);
-  constexpr explicit LazySeq<T>(const T &initializer, const std::function<T(T)> &next);
+  constexpr explicit LazySeq<T>(const T &initializer,
+                                const std::function<T(T)> &next,
+                                const skip_helper_t &skipHelper = nullptr);
   constexpr explicit LazySeq<T>(const fabric<T> &fab);
   constexpr explicit LazySeq<T>(const node_ptr<T> &nodePtr);
   constexpr explicit LazySeq<T>(const node<T> &node1);
@@ -497,7 +499,7 @@ template<class T>
 constexpr auto constantly(const T &item);
 
 template<class F, class... Args>
-constexpr decltype(auto) partial(const F &f, const Args&... args);
+constexpr decltype(auto) partial(const F &f, const Args &... args);
 
 template<class T>
 constexpr T increment(T obj);

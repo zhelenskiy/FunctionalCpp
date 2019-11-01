@@ -310,7 +310,7 @@ constexpr LazySeq<R> LazySeq<T>::mapByNode(const std::function<node_ptr<R>(node_
 
 template<class T>
 LazySeq<T>::LazySeq(std::initializer_list<T> list)
-    : evaluator_(makeLazy(std::move(std::vector<T>(list))).evaluator_) {}
+    : LazySeq<T>(makeLazy(std::move(std::vector<T>(list)))) {}
 
 template<class T>
 constexpr LazySeq<T>::LazySeq(const node<T> &node1) : LazySeq(std::make_optional<node<T>>(node1)) {}
@@ -1274,10 +1274,18 @@ constexpr LazySeq<indexed_t<T>> LazySeq<T>::getIndexed() const {
 }
 
 template<class T>
-constexpr LazySeq<T>::LazySeq(const T &initializer, const std::function<T(T)> &next)
-    : LazySeq(node<T>{initializer, LazySeq(
-    [next, initializer] { return LazySeq(next(initializer), next).eval(); }
-)}) {}
+constexpr LazySeq<T>::LazySeq(const T &initializer, const std::function<T(T)> &next, const skip_helper_t &skipHelper)
+    : LazySeq(LazySeq(node<T>{initializer, LazySeq(
+    [next, initializer, skipHelper] {
+      auto node = LazySeq(next(initializer), next).eval();
+      if (skipHelper && node.has_value()) {
+        node->second = node->second.setSkipHelper([skipHelper](wide_size_t count) {
+          return skipHelper(count < WIDE_SIZE_T_MAX ? count + 1 : WIDE_SIZE_T_MAX);
+        });
+      }
+      return node;
+    }
+)}).setSkipHelper(skipHelper)) {}
 
 template<class T>
 constexpr LazySeq<T>::LazySeq(wide_size_t count, const T &value) : LazySeq(count * LazySeq{value}) {}
