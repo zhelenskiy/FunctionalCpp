@@ -113,95 +113,102 @@ void traceCollection(const Container<K, V> &container) {
 
 void testSmartSkips() {
   trace("testSmartSkips");
-//  trace(identitySeq(3).skip(1000000000000ull).take(15));
-//  trace(randomNumbers(1, 10).skip(1000000000).take(15));
-//  trace(powersByFixedExponent<natural_t>(2).skip(1000000).take(15));
-//  trace(powersByFixedExponent<natural_t>(2).skip(500000).skip(500000).take(15));
-//  trace(powersByFixedBase<natural_t>(2).skip(1).take(15));
-//  for (auto count: {0, 1, 2, 3, 5}) {
-//    trace(fibonacciSeq().skip(count).take(15));
-//  }
-//  trace(infiniteRange(100).skip(1000000).take(15));
-//  trace(range(100, 2000000).skip(1000000).take(15));
-//  trace(range(0, 10000000).match(infiniteRange(1000)).skip(1000000).take(15));
-//  trace(makeLazy(std::vector(1000000, 1)).skip(999990));
-//  trace(makeLazy(std::list(100, 1)).skip(90));
-//  trace(makeLazy(std::initializer_list{1, 2, 3}).skip());
-//  auto initList = {1, 2, 3};
-//  auto vec = std::vector(initList);
-//  auto list = std::list(initList);
-//  trace(LazySeq(initList.begin(), initList.end()).skip());
-//  trace(LazySeq(vec.begin(), vec.end()).skip());
-//  trace(LazySeq(list.begin(), list.end()).skip());
-//  trace(LazySeq(1000000ull, 1).concat(LazySeq{3}).skip(999990));
-//  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000000));
-//  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000001));
-//  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000003));
-//  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000010));
-//  trace(range(1, 10).concat(range(100, 10)).skip(10));
-//  trace(range(1, 10).concat(range(100, 10)).skip(0));
-//  trace(join(LazySeq(10, std::vector(1000000, 3))).skip(9999990));
-//  std::vector<int> simpleVector = range(1, 10).toVector();
-//  trace(join(LazySeq(10, simpleVector)).skip(89));
-//  trace(join(LazySeq(10, simpleVector)).skip(90));
-//  trace(join(LazySeq(10, simpleVector)).skip(91));
-//  trace(join(LazySeq(10, simpleVector)).skip(100));
-//  trace(join(LazySeq(10, simpleVector)).skip(900));
-//  trace(join(LazySeq(3, std::vector{1, 2, 3})).skip(0));
-//  trace(makeLazy(std::vector(1000000, 3)).repeat(100000).skip(99999999990ull));
-//  trace(makeLazy(simpleVector).repeat(10).skip(89));
-//  trace(makeLazy(simpleVector).repeat(10).skip(90));
-//  trace(makeLazy(simpleVector).repeat(10).skip(91));
-//  trace(makeLazy(simpleVector).repeat(10).skip(100));
-//  trace(makeLazy(simpleVector).repeat(10).skip(101));
-//  trace(makeLazy(std::vector{1, 2}).repeat(4).skip(0));
-//  trace(makeLazy(std::vector{1, 2}).repeat(4).skip(1));
-//  trace(makeLazy(std::vector{1, 2}).repeat(0));
-//  trace(makeLazy(std::vector{1, 2}).repeat(0).skip(0));
-//  trace(makeLazy(std::vector{1, 2}).repeat(0).skip(1));
-//  trace(range(0, 5).map<int>(partial(std::divides<int>(), 720)).skip());
-//  trace(range(1, 1000000000).count());
-//  trace(range(1, 10).filter(odd<int>).count());
-//  trace(range(1, 10).count(odd<int>));
-//  trace(positiveRationalNumbers().take(15));
-//  trace(positiveRationalNumbers().skip(0).take(15));
-//  trace(positiveRationalNumbers().skip(3).take(15));
-//  const auto positiveRational = positiveRationalNumbers().itemAt(400000);
-//  std::cout << positiveRational.first << "/" << positiveRational.second << std::endl;
-//  trace(range(1, 10000).emplaceFront(0).skip(0).take(15));
-//  trace(range(1, 10000).emplaceFront(0).skip(1).take(15));
-//  trace(range(1, 10000).emplaceFront(0).skip(2).take(15));
-//  trace(range(1, 10000).emplaceFront(0).skip(100000000).take(15));
-//  trace(rationalNumbers().take(15));
-//  for (auto i : range(0, 4)) {
-//    trace(rationalNumbers().skip(i).take(15));
-//  }
-//  trace(rationalNumbers().skip(400000).take(10));
-//  trace(integerNumbers().skip(400000).take(10));
-//  trace(integerNumbers().skip(400001).take(10));
-//  trace(integerNumbers().skip(0).take(10));
-//  trace(integerNumbers().skip(1).take(10));
-//  trace(integerNumbers().skip(2).take(10));
-//  trace(naturalNumbers().skip(400000).take(10));
-//  trace(naturalNumbers().skip(2).take(10));
+  trace(identitySeq(3).skip(1000000000000ull).take(15));
+  trace(randomNumbers(1, 10).skip(1000000000).take(15));
+  trace(powersByFixedExponent<natural_t>(2).skip(1000000).take(15));
+  trace(powersByFixedExponent<natural_t>(2).skip(500000).skip(500000).take(15));
+  trace(powersByFixedBase<natural_t>(2).skip(1).take(15));
+  for (auto count: {0, 1, 2, 3, 5}) {
+    trace(fibonacciSeq().skip(count).take(15));
+  }
+  trace(infiniteRange(100).skip(1000000).take(15));
+  trace(range(100, 2000000).skip(1000000).take(15));
+  trace(range(0, 10000000).match(infiniteRange(1000)).skip(1000000).take(15));
+  trace(makeLazy(std::vector(1000000, 1)).skip(999990));
+  trace(makeLazy(std::list(100, 1)).skip(90));
+  trace(makeLazy(std::initializer_list{1, 2, 3}).skip());
+  auto initList = {1, 2, 3};
+  auto vec = std::vector(initList);
+  auto list = std::list(initList);
+  trace(LazySeq(initList.begin(), initList.end()).skip());
+  trace(LazySeq(vec.begin(), vec.end()).skip());
+  trace(LazySeq(list.begin(), list.end()).skip());
+  trace(LazySeq(1000000ull, 1).concat(LazySeq{3}).skip(999990));
+  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000000));
+  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000001));
+  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000003));
+  trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000010));
+  trace(range(1, 10).concat(range(100, 10)).skip(10));
+  trace(range(1, 10).concat(range(100, 10)).skip(0));
+  trace(join(LazySeq(10, std::vector(1000000, 3))).skip(9999990));
+  std::vector<int> simpleVector = range(1, 10).toVector();
+  trace(join(LazySeq(10, simpleVector)).skip(89));
+  trace(join(LazySeq(10, simpleVector)).skip(90));
+  trace(join(LazySeq(10, simpleVector)).skip(91));
+  trace(join(LazySeq(10, simpleVector)).skip(100));
+  trace(join(LazySeq(10, simpleVector)).skip(900));
+  trace(join(LazySeq(3, std::vector{1, 2, 3})).skip(0));
+  trace(makeLazy(std::vector(1000000, 3)).repeat(100000).skip(99999999990ull));
+  trace(makeLazy(simpleVector).repeat(10).skip(89));
+  trace(makeLazy(simpleVector).repeat(10).skip(90));
+  trace(makeLazy(simpleVector).repeat(10).skip(91));
+  trace(makeLazy(simpleVector).repeat(10).skip(100));
+  trace(makeLazy(simpleVector).repeat(10).skip(101));
+  trace(makeLazy(std::vector{1, 2}).repeat(4).skip(0));
+  trace(makeLazy(std::vector{1, 2}).repeat(4).skip(1));
+  trace(makeLazy(std::vector{1, 2}).repeat(0));
+  trace(makeLazy(std::vector{1, 2}).repeat(0).skip(0));
+  trace(makeLazy(std::vector{1, 2}).repeat(0).skip(1));
+  trace(range(0, 5).map<int>(partial(std::divides<>(), 720)).skip());
+  trace(range(1, 1000000000).count());
+  trace(range(1, 10).filter(odd<int>).count());
+  trace(range(1, 10).count(odd<int>));
+  trace(positiveRationalNumbers().take(15));
+  trace(positiveRationalNumbers().skip(0).take(15));
+  trace(positiveRationalNumbers().skip(3).take(15));
+  const auto positiveRational = positiveRationalNumbers().itemAt(400000);
+  std::cout << positiveRational.first << "/" << positiveRational.second << std::endl;
+  trace(range(1, 10000).emplaceFront(0).skip(0).take(15));
+  trace(range(1, 10000).emplaceFront(0).skip(1).take(15));
+  trace(range(1, 10000).emplaceFront(0).skip(2).take(15));
+  trace(range(1, 10000).emplaceFront(0).skip(100000000).take(15));
+  trace(rationalNumbers().take(15));
+  for (auto i : range(0, 4)) {
+    trace(rationalNumbers().skip(i).take(15));
+  }
+  trace(rationalNumbers().skip(400000).take(10));
+  trace(integerNumbers().skip(400000).take(10));
+  trace(integerNumbers().skip(400001).take(10));
+  trace(integerNumbers().skip(0).take(10));
+  trace(integerNumbers().skip(1).take(10));
+  trace(integerNumbers().skip(2).take(10));
+  trace(naturalNumbers().skip(400000).take(10));
+  trace(naturalNumbers().skip(2).take(10));
   trace(naturalNumbers().rest().hasSpecialSkipHelper());
+  trace(naturalNumbers().rest().first());
+  trace(naturalNumbers().rest().skip().first());
+  trace(naturalNumbers().rest().rest().skip().first());
+  trace(naturalNumbers().rest().rest().skip(1000000000000ull).first());
   for (const auto &seq: {naturalNumbers().groupBy(5), naturalNumbers().groupBy(5).skip(2),
-      /*naturalNumbers().filter(isGreaterThan(0)).groupBy(5).skip(2),
-      naturalNumbers().groupBy(0).skip(1).take(3),
-      naturalNumbers().groupBy(3).skip(0).take(5),
-      naturalNumbers().groupBy(0).skip(0).take(3)*/}) {
+                         naturalNumbers().filter(isGreaterThan(0)).groupBy(5).skip(2),
+                         naturalNumbers().groupBy(0).skip(1).take(3),
+                         naturalNumbers().groupBy(3).skip(0).take(5),
+                         naturalNumbers().groupBy(0).skip(0).take(3)}) {
     trace(seq.take(10).toString<std::string>(fn1(it.toString()), "\n"));
     trace();
   }
-//  trace(range(1, 10).butLast());
-//  trace(range(1, 10).butLast().count());
-//  trace(range(1, 1).butLast());
-//  trace(range(1, 1).butLast().count());
-//  trace(range(1, 0).butLast());
-//  trace(range(1, 0).butLast().count());
-//  for (auto i: {0ull, 1ull, 100000000000ull}) {
-//    trace(LazySeq<wide_size_t>(fn0(infiniteRange(0ull))).skip(i).take(10));
-//  }
+  auto groups = infiniteRange(0ull).take(100000000000ull).groupBy(1000000000);
+  trace(groups.itemAt(99).take(100));
+//  trace(groups.last().last());
+  trace(range(1, 10).butLast());
+  trace(range(1, 10).butLast().count());
+  trace(range(1, 1).butLast());
+  trace(range(1, 1).butLast().count());
+  trace(range(1, 0).butLast());
+  trace(range(1, 0).butLast().count());
+  for (auto i: {0ull, 1ull, 100000000000ull}) {
+    trace(LazySeq<wide_size_t>(fn0(infiniteRange(0ull))).skip(i).take(10));
+  }
 }
 
 //void testSizesOfLazySeqs() {

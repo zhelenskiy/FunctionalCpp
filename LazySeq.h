@@ -109,9 +109,7 @@ class LazySeq {
   constexpr LazySeq<T>(LazySeq<T> &&) noexcept = default;
   constexpr explicit LazySeq<T>(fabric_ptr<T> fabric, skip_helper_ptr_t skipHelper = nullptr);
   constexpr explicit LazySeq<T>(wide_size_t count, const T &value);
-  constexpr explicit LazySeq<T>(const T &initializer,
-                                const std::function<T(T)> &next,
-                                const skip_helper_t &skipHelper = nullptr);
+  constexpr explicit LazySeq<T>(const T &initializer, const std::function<T(T)> &next);
   constexpr explicit LazySeq<T>(const fabric<T> &fab);
   constexpr explicit LazySeq<T>(const node_ptr<T> &nodePtr);
   constexpr explicit LazySeq<T>(const node<T> &node1);
@@ -199,6 +197,7 @@ class LazySeq {
                                                            const std::function<V(indexed_t<T>)> &valueFunc) const;
 
   [[nodiscard]] constexpr node_ptr<T> eval() const;
+//  [[nodiscard]] LazySeq<T> broadcastSkipHelper() const;
 
   [[nodiscard]] constexpr T first() const;
   [[nodiscard]] constexpr LazySeq<T> rest() const;

@@ -43,8 +43,28 @@ constexpr LazySeq<T>::LazySeq(fabric_ptr<T> fabric, skip_helper_ptr_t skipHelper
 
 template<class T>
 constexpr node_ptr<T> LazySeq<T>::eval() const {
-  return (*evaluator_)();
+  auto evaluated = (*evaluator_)();
+  if (hasSpecialSkipHelper() && evaluated.has_value() && !evaluated->second.hasSpecialSkipHelper())
+    evaluated->second = evaluated->second.setSkipHelper(
+        [*this](wide_size_t count) { return applySkipHelper(count < WIDE_SIZE_T_MAX ? count + 1 : WIDE_SIZE_T_MAX); });
+  return evaluated;
 }
+
+//template<class T>
+//LazySeq<T> LazySeq<T>::broadcastSkipHelper() const {
+//  if (hasSpecialSkipHelper()) {
+//    auto indexed = getIndexed();
+//    return values(indexed.template mapByNode<indexed_t<T>>(
+//        [indexed](const node_ptr<indexed_t<T>> &evaled) {
+//          return std::pair{evaled->first, evaled->second.setSkipHelper(
+//              [indexed, offset = evaled->first.first](wide_size_t count) {
+//                return indexed.applySkipHelper(count <= WIDE_SIZE_T_MAX - offset ? count + offset : WIDE_SIZE_T_MAX);
+//              })};
+//        }));
+//  } else {
+//    return *this;
+//  }
+//}
 
 template<class T>
 constexpr bool LazySeq<T>::isEmpty() const {
@@ -337,7 +357,8 @@ constexpr LazySeq<T> LazySeq<T>::repeat(wide_size_t count) const {
         const auto resFullCount = fullCount - skipCount;
         return std::pair{(wide_size_t) 0, (skipCount % bucketCount != 0 ? skip(skipCount % bucketCount) : LazySeq<T>())
             + repeat(resFullCount / bucketCount)};
-      });
+      })
+    /*.broadcastSkipHelper()*/;
 }
 
 template<class T>
@@ -635,9 +656,9 @@ std::string LazySeq<T>::toString(const std::string &separator) const {
 
 template<class T>
 T LazySeq<T>::last() const {
-  return reduce([](const T &, const T &b) -> T {
-    return b;
-  });
+  return hasSpecialSkipHelper()
+         ? itemAt(count() - 1)
+         : reduce([](const T &, const T &b) -> T { return b; });
 }
 
 template<class T>
@@ -653,15 +674,17 @@ constexpr LazySeq<T> LazySeq<T>::butLast() const {
           auto restNode = pair.second;
           return std::pair{restNode->first, restNode->second.eval()};
         }).takeWhile([](const auto &pair) { return pair.second.has_value(); }));
-  }).setSkipHelper(
-      hasSpecialSkipHelper()
-      ? [*this](wide_size_t count) {
-        auto[toBeSkipped, rest] = applySkipHelper(count);
-        auto node = rest.eval();
-        return node ? std::pair{(wide_size_t) 0, LazySeq(node).butLast()}
-                    : std::pair{toBeSkipped < WIDE_SIZE_T_MAX ? toBeSkipped + 1 : WIDE_SIZE_T_MAX, LazySeq<T>()};
-      }
-      : skip_helper_t());
+  })
+      .setSkipHelper(
+          hasSpecialSkipHelper()
+          ? [*this](wide_size_t count) {
+            auto[toBeSkipped, rest] = applySkipHelper(count);
+            auto node = rest.eval();
+            return node ? std::pair{(wide_size_t) 0, LazySeq(node).butLast()}
+                        : std::pair{toBeSkipped < WIDE_SIZE_T_MAX ? toBeSkipped + 1 : WIDE_SIZE_T_MAX, LazySeq<T>()};
+          }
+          : skip_helper_t())
+    /*.broadcastSkipHelper()*/;
 }
 
 template<class T>
@@ -1093,7 +1116,7 @@ constexpr LazySeq<R> LazySeq<T>::matchByIndex(const LazySeq<S> &other,
 
 template<class T>
 LazySeq<LazySeq<T>> LazySeq<T>::groupBy(wide_size_t portion) const {
-  return LazySeq<LazySeq<T >>(
+  return LazySeq<LazySeq<T>>(
       [*this, portion] {
         auto evaled = eval();
         if (!evaled.has_value()) {
@@ -1274,18 +1297,10 @@ constexpr LazySeq<indexed_t<T>> LazySeq<T>::getIndexed() const {
 }
 
 template<class T>
-constexpr LazySeq<T>::LazySeq(const T &initializer, const std::function<T(T)> &next, const skip_helper_t &skipHelper)
-    : LazySeq(LazySeq(node<T>{initializer, LazySeq(
-    [next, initializer, skipHelper] {
-      auto node = LazySeq(next(initializer), next).eval();
-      if (skipHelper && node.has_value()) {
-        node->second = node->second.setSkipHelper([skipHelper](wide_size_t count) {
-          return skipHelper(count < WIDE_SIZE_T_MAX ? count + 1 : WIDE_SIZE_T_MAX);
-        });
-      }
-      return node;
-    }
-)}).setSkipHelper(skipHelper)) {}
+constexpr LazySeq<T>::LazySeq(const T &initializer, const std::function<T(T)> &next)
+    : LazySeq(node<T>{initializer, LazySeq(
+    [next, initializer] { return LazySeq(next(initializer), next).eval(); }
+)}) {}
 
 template<class T>
 constexpr LazySeq<T>::LazySeq(wide_size_t count, const T &value) : LazySeq(count * LazySeq{value}) {}
@@ -1378,7 +1393,8 @@ constexpr auto LazySeq<T>::pow() const {
 template<class T>
 constexpr LazySeq<T>::LazySeq(const std::function<LazySeq<T>()> &generator)
     : LazySeq(LazySeq([generator] { return generator().eval(); })
-                  .setSkipHelper([generator](wide_size_t count) { return generator().applySkipHelper(count); })) {}
+                  .setSkipHelper([generator](wide_size_t count) { return generator().applySkipHelper(count); })
+    /*.broadcastSkipHelper()*/) {}
 
 template<class T>
 constexpr LazySeq<T>::operator bool() const {
@@ -1416,8 +1432,13 @@ constexpr LazySeq<T> range(const T &start, wide_size_t count) {
 
 template<class T>
 constexpr LazySeq<T> infiniteRange(const T &start) {
-  return LazySeq<T>(start, increment<T>).setSkipHelper(
-      [start](wide_size_t count) { return std::pair{(wide_size_t) 0, infiniteRange(adder<T>::invoke(start, count))}; });
+  auto baseSeq = LazySeq<T>(start, increment<T>);
+  return adder<T>::hasPlus
+         ? baseSeq.setSkipHelper(
+          [start](wide_size_t count) {
+            return std::pair{(wide_size_t) 0, infiniteRange(adder<T>::invoke(start, count))};
+          })
+         : baseSeq;
 }
 
 template<class Container>
@@ -1487,6 +1508,7 @@ LazySeq<integer_t> integerNumbers() {
       .setSkipHelper([mapper](wide_size_t count) {
         return std::pair{(wide_size_t) 0, mapper(naturalNumbers().skip(count / 2)).skip(count % 2)};
       })
+          /*.broadcastSkipHelper()*/
       .emplaceFront(0);
 }
 
@@ -1497,18 +1519,20 @@ LazySeq<rational_t> positiveRationalNumbers() {
   auto nextGenerator = [](rational_t q) -> rational_t {
     return {q.second, q.first / q.second * q.second * 2 - q.first + q.second};
   };
-  return LazySeq<rational_t>(rational_t{1, 1}, nextGenerator).setSkipHelper(
-      [nextGenerator](wide_size_t count) {
-        std::function<natural_t(wide_size_t)> fusc;
-        fusc = [&fusc](wide_size_t count) {
-          return count <= 1 ? count
-                            : count % 2 == 0
-                              ? fusc(count / 2)
-                              : fusc(count / 2) + fusc(count / 2 + 1);
-        };
-        return std::pair{(wide_size_t) 0,
-                         LazySeq<rational_t>(rational_t{fusc(count + 1), fusc(count + 2)}, nextGenerator)};
-      });
+  return LazySeq<rational_t>(rational_t{1, 1}, nextGenerator)
+      .setSkipHelper(
+          [nextGenerator](wide_size_t count) {
+            std::function<natural_t(wide_size_t)> fusc;
+            fusc = [&fusc](wide_size_t count) {
+              return count <= 1 ? count
+                                : count % 2 == 0
+                                  ? fusc(count / 2)
+                                  : fusc(count / 2) + fusc(count / 2 + 1);
+            };
+            return std::pair{(wide_size_t) 0,
+                             LazySeq<rational_t>(rational_t{fusc(count + 1), fusc(count + 2)}, nextGenerator)};
+          })
+    /*.broadcastSkipHelper()*/;
 }
 
 LazySeq<rational_t> rationalNumbers() {
@@ -1520,6 +1544,7 @@ LazySeq<rational_t> rationalNumbers() {
       .setSkipHelper([mapper](wide_size_t count) {
         return std::pair{(wide_size_t) 0, mapper(positiveRationalNumbers().skip(count / 2)).skip(count % 2)};
       })
+          /*.broadcastSkipHelper()*/
       .emplaceFront(rational_t{0, 1});
 }
 
@@ -1619,11 +1644,13 @@ constexpr LazySeq<T> fibonacciSeq() {
     return LazySeq<std::pair<T, T>>(start,
                                     [](const auto &pair) { return std::pair{pair.second, pair.first + pair.second}; });
   };
-  return keys(seq({(T) 0, (T) 1}).setSkipHelper(
-      [seq](wide_size_t index) {
-        return std::pair{(wide_size_t) 0, seq(std::pair<T, T>{fibonacci(index), fibonacci(index + 1)})};
-      }
-  ));
+  return keys(seq({(T) 0, (T) 1})
+                  .setSkipHelper(
+                      [seq](wide_size_t index) {
+                        return std::pair{(wide_size_t) 0, seq(std::pair<T, T>{fibonacci(index), fibonacci(index + 1)})};
+                      }
+                  )
+      /*.broadcastSkipHelper()*/);
 }
 
 template<class T>
