@@ -656,9 +656,12 @@ std::string LazySeq<T>::toString(const std::string &separator) const {
 
 template<class T>
 T LazySeq<T>::last() const {
-  return hasSpecialSkipHelper()
-         ? itemAt(count() - 1)
-         : reduce([](const T &, const T &b) -> T { return b; });
+  if (hasSpecialSkipHelper()) {
+    auto cnt = count();
+    return cnt ? itemAt(cnt - 1) : T();
+  } else {
+    return reduce([](const T &, const T &b) -> T { return b; });
+  }
 }
 
 template<class T>
@@ -1432,13 +1435,13 @@ constexpr LazySeq<T> range(const T &start, wide_size_t count) {
 
 template<class T>
 constexpr LazySeq<T> infiniteRange(const T &start) {
-  auto baseSeq = LazySeq<T>(start, increment<T>);
   return adder<T>::hasPlus
-         ? baseSeq.setSkipHelper(
+         ? LazySeq<T>(std::pair{start, LazySeq<T>([start] { return infiniteRange(increment(start)); })})
+             .setSkipHelper(
           [start](wide_size_t count) {
             return std::pair{(wide_size_t) 0, infiniteRange(adder<T>::invoke(start, count))};
           })
-         : baseSeq;
+         : LazySeq<T>(start, increment<T>);
 }
 
 template<class Container>
