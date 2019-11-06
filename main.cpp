@@ -702,6 +702,7 @@ void testCartesianMultiplication() {
               << std::get<1>(tup) << ", "
               << std::get<2>(tup) << ")\n";
   });
+  trace(range(2, 3).pow<0>().count());
   std::cout << std::endl;
 }
 

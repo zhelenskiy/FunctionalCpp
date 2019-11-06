@@ -1382,7 +1382,7 @@ struct Pow<T, 1> {
 template<class T>
 struct Pow<T, 0> {
   constexpr static auto invoke(const LazySeq<T> &seq) {
-    return seq.map(std::make_tuple<>);
+    return LazySeq<std::tuple<>>();
   }
 };
 }
