@@ -14,7 +14,7 @@ The lazy sequences have a large number of methods apart from filter, map that ar
 
 That means that
   `std::cout << naturalNumbers().reverse().reverse().first();`
-wouldn't work endlessly.*
+wouldn't work endlessly.
 
 ---
 
@@ -52,11 +52,20 @@ If I take items 100 000th to 1 000 000th from 10 000 000, only 900 000 items bec
 
 ### Listing
 
+*A big change is going to happen to list of methods soon, so it is not worth listing now.*
+
 ### Known Issues
+
+| Name | Problem | Solution |
+| ---- | ------- | -------- |
+| Slowness | The speed is small due to excessive heap memory usage | it is going to be reduced in upcoming updates. Also ordering is going to become inplace. |
+| Order | OrderedLazySeq does not override methods of LazySeq because it has different return type. *For example, LazySeq::skip returns LazySeq while OrderedLazySeq::skip returns OrderedLazySeq.* | Future replacements: Pipe operator instead of member access operator; implicit cast instead of inheritance. |
+| Skip slowness | Sometimes it is faster to eval skip straight than using smart skip helper if `n` is small and skipHelper complexity is not O(1). The problem is especially relevant when skipHelper is deeply nested. *For example, after using* `skip(1)` `n` *times*, current smart skip helper is `Ω(n)`. | Use `float skipHelperComplexityFunction(wide_size_t n)` that returns approximate number of operations of applying `smartSkipHelper(n)`. Complexity of this function is supposed to be O(1). `float` is used to avoid overflows because of no necessity of exact result.
+| Overflow | In `.count()` I use the fact that count = WIDE_SIZE_T_MAX - skipHelper(WIDE_SIZE_T_MAX) which can lead to overflows. | Use a special helper for this purpose. Complexity is supposed to be O(1).
 
 ### In the upcoming updates
 
-In next updates the lazy sequences are going even to resolve if it is faster to use smart skip helper or not.
+In next updates the lazy sequences are going even to resolve if it is faster to use smart skip helper or not. But methods signatures are self-documented, so you can have a look at the methods in *.h-s.
 
 ```cpp
 // SomeLazySeq is a seq that has SmartSkipper (O(1)) only for first item,
