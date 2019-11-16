@@ -6,17 +6,15 @@
 
 template<class T>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const comparer<T> &comp) const {
-  return OrderedLazySeq(separateMore(classes_, comp),
-                        hasSpecialPartialSkipHelper()
-                        ? [*this, comp](wide_size_t count) {
-                          auto[toBeSkipped, node] = std::apply(simpleSkip, applyPartialSkipHelper(count));
-                          if (!node) {
-                            return std::pair{toBeSkipped, equivClasses<T>()};
-                          }
-                          auto[smallerToBeSkipped, rest] = smartSkip(node->first, toBeSkipped, comp);
-                          return std::pair{smallerToBeSkipped, rest + separateMore(node->second, comp)};
-                        }
-                        : partial_skip_helper_t());
+  return OrderedLazySeq(separateMore(classes_, comp), wrapPartialSkipHelper(
+      [*this, comp](wide_size_t count) {
+        auto[toBeSkipped, node] = std::apply(simpleSkip, applyPartialSkipHelper(count));
+        if (!node) {
+          return std::pair{toBeSkipped, equivClasses<T>()};
+        }
+        auto[smallerToBeSkipped, rest] = smartSkip(node->first, toBeSkipped, comp);
+        return std::pair{smallerToBeSkipped, rest + separateMore(node->second, comp)};
+      }));
 }
 
 template<class T>
@@ -85,12 +83,10 @@ template<class R>
 constexpr OrderedLazySeq<R> OrderedLazySeq<T>::map(const std::function<R(T)> &func) const {
   return OrderedLazySeq<R>(
       classes_.template map<equivClass<R>>(vectorMap(func)),
-      hasSpecialPartialSkipHelper()
-      ? [func, *this](wide_size_t count) {
+      OrderedLazySeq<R>::wrapPartialSkipHelper([func, *this](wide_size_t count) {
         auto[toBeSkipped, rest] = applyPartialSkipHelper(count);
         return std::pair{toBeSkipped, rest.template map<equivClass<R>>(vectorMap(func))};
-      }
-      : typename OrderedLazySeq<R>::partial_skip_helper_t());
+      }));
 }
 
 template<class T>
@@ -160,17 +156,22 @@ std::pair<wide_size_t, node_ptr<equivClass<T>>> OrderedLazySeq<T>::simpleSkip(wi
 }
 
 template<class T>
+template<class Lambda>
 constexpr OrderedLazySeq<T>::OrderedLazySeq(const equivClasses<T> &classes,
-                                            const partial_skip_helper_t &partialSkipHelper)
+                                            const Lambda &partialSkipHelper)
     : LazySeq<T>(join(classes).setSkipHelper(
-    partialSkipHelper
-    ? [partialSkipHelper](wide_size_t count) {
+    is_not_null_function(partialSkipHelper)
+    ? typename LazySeq<T>::skip_helper_t([partialSkipHelper](wide_size_t count) {
       auto[toBeSkipped, seq] = partialSkipHelper(count);
       return join(seq).applySkipHelper(toBeSkipped);
-    }
+    })
     : typename LazySeq<T>::skip_helper_t())),
       classes_(classes),
-      partialSkipHelper_(partialSkipHelper ? std::make_shared<partial_skip_helper_t>(partialSkipHelper) : nullptr) {}
+      partialSkipHelper_(partial_skip_helper_t(partialSkipHelper)) {}
+
+template<class T>
+constexpr OrderedLazySeq<T>::OrderedLazySeq(const equivClasses<T> &classes)
+    : OrderedLazySeq<T>(classes, partial_skip_helper_t()) {}
 
 template<class T>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::rest() const {
@@ -188,12 +189,10 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skip(wide_size_t count) const {
           vec.resize(vec.size() - toBeSkipped);
         }
         return equivClasses<T>(node);
-      }),
-      hasSpecialPartialSkipHelper()
-      ? [*this, count](wide_size_t newCount) {
-        return applyPartialSkipHelper(count < WIDE_SIZE_T_MAX - newCount ? count + newCount : WIDE_SIZE_T_MAX);
-      }
-      : partial_skip_helper_t());
+      }), wrapPartialSkipHelper(
+          [*this, count](wide_size_t newCount) {
+            return applyPartialSkipHelper(count < WIDE_SIZE_T_MAX - newCount ? count + newCount : WIDE_SIZE_T_MAX);
+          }));
 }
 
 template<class T>
@@ -204,15 +203,13 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::filter(const predicate<T> &pred) 
 template<class T>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::take(wide_size_t count) const {
   return OrderedLazySeq<T>(
-      getTakenClasses(classes_, count),
-      hasSpecialPartialSkipHelper()
-      ? [*this, count](wide_size_t skipCount) {
-        auto[notSkippedYet, classes] = applyPartialSkipHelper(skipCount);
-        auto wereAlreadySkipped = skipCount - notSkippedYet;
-        classes = getTakenClasses(classes, count > wereAlreadySkipped ? count - wereAlreadySkipped : 0);
-        return std::pair{notSkippedYet, classes};
-      }
-      : partial_skip_helper_t());
+      getTakenClasses(classes_, count), wrapPartialSkipHelper(
+          [*this, count](wide_size_t skipCount) {
+            auto[notSkippedYet, classes] = applyPartialSkipHelper(skipCount);
+            auto wereAlreadySkipped = skipCount - notSkippedYet;
+            classes = getTakenClasses(classes, count > wereAlreadySkipped ? count - wereAlreadySkipped : 0);
+            return std::pair{notSkippedYet, classes};
+          }));
 }
 
 template<class T>
@@ -279,5 +276,12 @@ constexpr bool OrderedLazySeq<T>::hasSpecialPartialSkipHelper() const {
 
 template<class T>
 constexpr std::pair<wide_size_t, equivClasses<T>> OrderedLazySeq<T>::applyPartialSkipHelper(wide_size_t count) const {
-  return hasSpecialPartialSkipHelper() ? (*partialSkipHelper_)(count) : std::pair{count, classes_};
+  return hasSpecialPartialSkipHelper() ? partialSkipHelper_(count) : std::pair{count, classes_};
+}
+
+template<class T>
+template<class Lambda>
+typename OrderedLazySeq<T>::partial_skip_helper_t
+OrderedLazySeq<T>::wrapPartialSkipHelper(const Lambda &partialSkipHelper) {
+  return partial_skip_helper_t(partialSkipHelper);
 }

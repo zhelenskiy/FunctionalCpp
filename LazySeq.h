@@ -22,6 +22,8 @@
 #include <set>
 #include <unordered_set>
 
+#include "SimpleCopyFunction.h"
+
 template<class T>
 class LazySeq;
 
@@ -39,9 +41,7 @@ using node = std::pair<T, LazySeq<T>>;
 template<class T>
 using node_ptr = std::optional<node<T>>;
 template<class T>
-using fabric = std::function<node_ptr<T>()>;
-template<class T>
-using fabric_ptr = std::shared_ptr<fabric<T>>;
+using fabric = SimpleCopyFunction<std::function<node_ptr<T>()>>;
 template<class T>
 using predicate = std::function<bool(T)>;
 template<class T>
@@ -97,24 +97,30 @@ class LazySeq {
   typedef typename std::allocator_traits<allocator_type>::const_pointer const_pointer;
   [[nodiscard]] constexpr const_iterator begin() const;
   [[nodiscard]] constexpr const_iterator end() const;
-  using skip_helper_t = std::function<std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>;
-  using skip_helper_ptr_t = std::shared_ptr<skip_helper_t>;
+  using skip_helper_t = SimpleCopyFunction<std::function<std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>>;
 
   /*implicit */LazySeq<T>(std::initializer_list<T> list);
   template<class Iter, class... Args>
   constexpr LazySeq<T>(Iter first, Iter last, Args... captured);
+//  template<class Iter>
+//  constexpr LazySeq<T>(Iter first, Iter last); // exists to make this overload chosen (not two lambdas)
 
   constexpr LazySeq<T>();
   constexpr LazySeq<T>(const LazySeq<T> &) = default;
   constexpr LazySeq<T>(LazySeq<T> &&) noexcept = default;
-  constexpr explicit LazySeq<T>(fabric_ptr<T> fabric, skip_helper_ptr_t skipHelper = nullptr);
   constexpr explicit LazySeq<T>(wide_size_t count, const T &value);
   constexpr explicit LazySeq<T>(const T &initializer, const std::function<T(T)> &next);
-  constexpr explicit LazySeq<T>(const fabric<T> &fab);
+  constexpr explicit LazySeq<T>(const fabric<T> &evaluator, const skip_helper_t &skipHelper = skip_helper_t());
+  // Lambda2 type can not be deduced if the default value is used.
+//  template<class Lambda1, class = std::enable_if_t<std::is_convertible_v<Lambda1, node_ptr<T>()>>>
+//  constexpr explicit LazySeq<T>(const Lambda1 &evaluator);
   constexpr explicit LazySeq<T>(const node_ptr<T> &nodePtr);
   constexpr explicit LazySeq<T>(const node<T> &node1);
   constexpr explicit LazySeq<T>(const std::function<LazySeq<T>()> &generator);
-  [[nodiscard]] constexpr LazySeq<T> setSkipHelper(const skip_helper_t &specialSkip) const;
+  template<class Lambda>
+  constexpr LazySeq<T> setSkipHelper(const Lambda &specialSkip) const;
+  template<class R, class Lambda>
+  constexpr LazySeq<R> setSkipHelperIfThisHas(const LazySeq<R> &this_, const Lambda &specialSkip) const;
 
   virtual ~LazySeq() = default;
 
@@ -425,8 +431,8 @@ class LazySeq {
   [[nodiscard]] auto applySkipHelper(wide_size_t count) const;
 
  private:
-  fabric_ptr<T> evaluator_;
-  skip_helper_ptr_t skipHelper_ = nullptr;
+  fabric<T> evaluator_;
+  skip_helper_t skipHelper_;
 
   [[nodiscard]] constexpr OrderedLazySeq<T> makeOrdered() const;
 };
@@ -475,6 +481,34 @@ constexpr static comparer<T> descendingComparer(const comparer<T> &comp);
 template<class Iter, class... Args>
 LazySeq(Iter begin, Iter end, Args... captured) -> LazySeq<typename std::iterator_traits<Iter>::value_type>;
 
+template<class Lambda1, class Lambda2, class T = decltype(std::declval<Lambda1>()()->first),
+    class = std::enable_if_t<std::is_convertible_v<Lambda1, node_ptr<T>()>>,
+    class = std::enable_if_t<std::is_convertible_v<Lambda2, std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>>>
+LazySeq(const Lambda1 &fab, const Lambda2 &skipHelper) -> LazySeq<T>;
+// Lambda2 type can not be deduced if the default value is used.
+//template<class Lambda1, class T = decltype(std::declval<Lambda1>()()->first), class = std::enable_if_t<std::is_convertible_v<Lambda1, node_ptr<T>()>>>
+//LazySeq(const Lambda1 &fab) -> LazySeq<T>;
+
+//template<class Lambda1, class Lambda2>
+//LazySeq(const Lambda1& f1, const Lambda2&) -> LazySeq<decltype(f1().first)>;
+
+//template<class Iter>
+//LazySeq(Iter begin, Iter end) -> LazySeq<typename std::iterator_traits<Iter>::value_type>;
+
+namespace lazy_seq {
+template<class Lambda1, class Lambda2>
+auto build(const Lambda1 &evaluator, const Lambda2 &skipHelper) {
+  using T = decltype(evaluator()->first);
+  return LazySeq<T>(fabric<T>(evaluator), typename LazySeq<T>::skip_helper_t(skipHelper));
+}
+
+template<class Lambda1>
+auto build(const Lambda1 &evaluator) {
+  using T = decltype(evaluator()->first);
+  return build(evaluator, typename LazySeq<T>::skip_helper_t());
+}
+}
+
 template<class LazySeq>
 constexpr auto operator+(const LazySeq &a, const LazySeq &b);
 template<class T>
@@ -488,6 +522,9 @@ constexpr std::function<bool(Args...)> negate(const std::function<bool(Args...)>
 
 template<class T>
 constexpr predicate<T> dividesBy(const T &n);
+
+template<class Lambda>
+bool is_not_null_function(const Lambda &f);
 
 template<class T>
 constexpr bool even(const T &item);

@@ -10,13 +10,14 @@
 template<class T>
 class OrderedLazySeq : public LazySeq<T> {
  public:
-  using partial_skip_helper_t = std::function<std::pair<wide_size_t, equivClasses<T>>(wide_size_t)>;
-  using partial_skip_helper_ptr = std::shared_ptr<partial_skip_helper_t>;
+  using partial_skip_helper_t = SimpleCopyFunction<std::function<std::pair<wide_size_t, equivClasses<T>>(wide_size_t)>>;
 
   constexpr OrderedLazySeq() = default;
   constexpr OrderedLazySeq(const OrderedLazySeq<T> &) = default;
   constexpr OrderedLazySeq(OrderedLazySeq<T> &&) noexcept = default;
-  constexpr OrderedLazySeq(const equivClasses<T> &classes, const partial_skip_helper_t &partialSkipHelper = nullptr);
+  template<class Lambda>
+  constexpr OrderedLazySeq(const equivClasses<T> &classes, const Lambda &partialSkipHelper);
+  constexpr OrderedLazySeq(const equivClasses<T> &classes);
 
   ~OrderedLazySeq() override = default;
 
@@ -48,11 +49,14 @@ class OrderedLazySeq : public LazySeq<T> {
   [[nodiscard]] constexpr bool hasSpecialPartialSkipHelper() const;
   constexpr std::pair<wide_size_t, equivClasses<T>> applyPartialSkipHelper(wide_size_t count) const;
 
+  template<class Lambda>
+  static partial_skip_helper_t wrapPartialSkipHelper(const Lambda &partialSkipHelper);
+
  private:
   static const wide_size_t BUCKET_SIZE_FOR_STD_SORT_CALL = 256;
 
   equivClasses<T> classes_;
-  partial_skip_helper_ptr partialSkipHelper_;
+  partial_skip_helper_t partialSkipHelper_;
 
   static auto partition(const equivClass<T> &items, const comparer<T> &comp);
 
