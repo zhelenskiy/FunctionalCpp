@@ -41,10 +41,6 @@ using node_ptr = std::optional<node<T>>;
 template<class T>
 using fabric = std::function<node_ptr<T>()>;
 template<class T>
-using predicate = std::function<bool(T)>;
-template<class T>
-using comparer = std::function<bool(T, T)>;
-template<class T>
 using equivClass = std::vector<T>;
 template<class T>
 using equivClasses = LazySeq<equivClass<T>>;
@@ -78,6 +74,15 @@ struct when_is_function {
   using function = Function;
   using std_function = std::function<Function>;
 };
+
+template<class Lambda, class... Args>
+using ResType = decltype(std::declval<Lambda>()(std::declval<Args>()...));
+
+template<class Lambda, class... Args>
+using when_is_predicate = when_is_function<Lambda, bool(Args...)>;
+
+template<class Lambda, class T>
+using when_is_comparer = when_is_predicate<Lambda, T, T>;
 
 template<class T>
 class LazySeq {
@@ -225,11 +230,15 @@ class LazySeq {
 
   [[nodiscard]] constexpr T first() const;
   [[nodiscard]] constexpr LazySeq<T> rest() const;
-  [[nodiscard]] constexpr T first(const predicate<T> &pred) const;
-  [[nodiscard]] constexpr T firstByIndex(const predicate<indexed_t<T>> &pred) const;
-  [[nodiscard]] constexpr LazySeq<T> rest(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr T first(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr T firstByIndex(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> rest(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> rest(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> restByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> restByIndex(const Lambda &pred) const;
   [[nodiscard]] constexpr T itemAt(wide_size_t index) const;
   constexpr wide_size_t indexOf(const T &item, wide_size_t index = 0);
   [[nodiscard]] constexpr LazySeq<indexed_t<T>> getIndexed() const;
@@ -237,17 +246,23 @@ class LazySeq {
   [[nodiscard]] constexpr bool isEmpty() const;
   [[nodiscard]] constexpr explicit operator bool() const;
 
-  [[nodiscard]] constexpr LazySeq<T> filter(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> filter(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> filter(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> filterByIndex(const predicate<indexed_t<T>> &pred) const;
-  [[nodiscard]] constexpr LazySeq<T> remove(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> filterByIndex(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> remove(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> remove(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> removeByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> removeByIndex(const Lambda &pred) const;
 
 //  template<class R>
 //  constexpr LazySeq<R> mapByNode(const std::function<node<R>(node_ptr<T>)> &f) const;
-  template<class R>
-  constexpr LazySeq<R> mapByNode(const std::function<node_ptr<R>(node_ptr<T>)> &f) const;
+  template<class Lambda, class R = typename ResType<Lambda, node_ptr<T>>::first_type>
+  constexpr LazySeq<R> mapByNode(const Lambda &f) const;
+  template<class Lambda, class = void, class R = decltype(std::declval<ResType<Lambda, node_ptr<T>>>()->first)>
+  constexpr LazySeq<R> mapByNode(const Lambda &f) const;
   template<class R>
   constexpr LazySeq<R> map(const std::function<R(T)> &func) const;
   template<class R>
@@ -256,9 +271,11 @@ class LazySeq {
   constexpr auto mapMany(const std::function<Container(T)> &func) const;
   template<class Container>
   constexpr auto mapManyByIndex(const std::function<Container(indexed_t<T>)> &func) const;
-  constexpr LazySeq<T> mapIf(const std::function<T(T)> &func, const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  constexpr LazySeq<T> mapIf(const std::function<T(T)> &func, const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
   constexpr LazySeq<T> mapIfByIndex(const std::function<T(indexed_t<T>)> &func,
-                                    const predicate<indexed_t<T>> &pred) const;
+                                    const Lambda &pred) const;
 
   template<class R = void>
   constexpr void foreach(const std::function<R(T)> &func = [](const T &) {}) const;
@@ -279,28 +296,40 @@ class LazySeq {
   constexpr LazySeq<R> matchByIndex(const LazySeq<S> &other,
                                     const std::function<R(indexed_t<std::pair<T, S>>)> &func) const;
 
-  [[nodiscard]] constexpr bool every(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr bool every(const Lambda &pred) const;
   [[nodiscard]] constexpr bool every(const T &item) const;
-  [[nodiscard]] constexpr bool everyByIndex(const predicate<indexed_t<T>> &pred) const;
-  [[nodiscard]] constexpr bool any(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr bool everyByIndex(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr bool any(const Lambda &pred) const;
   [[nodiscard]] constexpr bool any(const T &item) const;
-  [[nodiscard]] constexpr bool anyByIndex(const predicate<indexed_t<T>> &pred) const;
-  [[nodiscard]] constexpr bool none(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr bool anyByIndex(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr bool none(const Lambda &pred) const;
   [[nodiscard]] constexpr bool none(const T &item) const;
-  [[nodiscard]] constexpr bool noneByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr bool noneByIndex(const Lambda &pred) const;
   [[nodiscard]] constexpr bool contains(const T &value) const;
   [[nodiscard]] constexpr LazySeq<T> take(wide_size_t count = 1) const;
-  [[nodiscard]] constexpr LazySeq<T> takeWhile(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> takeWhile(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> takeWhile(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> takeWhileByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> takeWhileByIndex(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> skip(wide_size_t count = 1) const;
-  [[nodiscard]] constexpr LazySeq<T> skipWhile(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> skipWhile(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> skipWhile(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> skipWhileByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> skipWhileByIndex(const Lambda &pred) const;
   [[nodiscard]] wide_size_t count() const;
-  [[nodiscard]] wide_size_t count(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] wide_size_t count(const Lambda &pred) const;
   [[nodiscard]] wide_size_t count(const T &item) const;
-  [[nodiscard]] wide_size_t countByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] wide_size_t countByIndex(const Lambda &pred) const;
 
   [[nodiscard]] constexpr LazySeq<T> emplaceFront(const T &value) const;
   [[nodiscard]] constexpr LazySeq<T> emplaceBack(const T &value) const;
@@ -331,22 +360,41 @@ class LazySeq {
   auto divide(const std::function<R(T)> &f) const;
   template<class R>
   auto divideByIndex(const std::function<R(indexed_t<T>)> &f) const;
-  [[nodiscard]] T min(const comparer<T> &comp = std::less<T>()) const;
+
+  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  [[nodiscard]] T min(const Lambda &comp) const;
+  [[nodiscard]] T min() const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  T min(const std::function<R(T)> &f, const Lambda &comp) const;
   template<class R>
-  T min(const std::function<R(T)> &f, const comparer<R> &comp = std::less<R>()) const;
+  T min(const std::function<R(T)> &f) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  T minByIndex(const std::function<R(indexed_t<T>)> &f, const Lambda &comp) const;
   template<class R>
-  T minByIndex(const std::function<R(indexed_t<T>)> &f, const comparer<R> &comp = std::less<R>()) const;
-  [[nodiscard]] T max(const comparer<T> &comp = std::less<T>()) const;
+  T minByIndex(const std::function<R(indexed_t<T>)> &f) const;
+  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  [[nodiscard]] T max(const Lambda &comp) const;
+  [[nodiscard]] T max() const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  T max(const std::function<R(T)> &f, const Lambda &comp) const;
   template<class R>
-  T max(const std::function<R(T)> &f, const comparer<R> &comp = std::less<R>()) const;
+  T max(const std::function<R(T)> &f) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  T maxByIndex(const std::function<R(indexed_t<T>)> &f, const Lambda &comp) const;
   template<class R>
-  T maxByIndex(const std::function<R(indexed_t<T>)> &f, const comparer<R> &comp = std::less<R>()) const;
-  [[nodiscard]] std::pair<T, T> minMax(const comparer<T> &comp = std::less<T>()) const;
+  T maxByIndex(const std::function<R(indexed_t<T>)> &f) const;
+  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  [[nodiscard]] std::pair<T, T> minMax(const Lambda &comp) const;
+  [[nodiscard]] std::pair<T, T> minMax() const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  std::pair<T, T> minMax(const std::function<R(T)> &f, const Lambda &comp) const;
   template<class R>
-  std::pair<T, T> minMax(const std::function<R(T)> &f, const comparer<R> &comp = std::less<R>()) const;
-  template<class R>
+  std::pair<T, T> minMax(const std::function<R(T)> &f) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
   std::pair<T, T> minMaxByIndex(const std::function<R(indexed_t<T>)> &f,
-                                const comparer<R> &comp = std::less<R>()) const;
+                                const Lambda &comp) const;
+  template<class R>
+  std::pair<T, T> minMaxByIndex(const std::function<R(indexed_t<T>)> &f) const;
 
   [[nodiscard]] std::string toString(const std::string &separator = " ") const;
   template<class R>
@@ -355,12 +403,16 @@ class LazySeq {
   std::string toStringByIndex(const std::function<R(indexed_t<T>)> &f, const std::string &separator = " ") const;
 
   [[nodiscard]] T last() const;
-  [[nodiscard]] T last(const predicate<T> &pred) const;
-  [[nodiscard]] T lastByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] T last(const Lambda &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] T lastByIndex(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> butLast() const;
-  [[nodiscard]] constexpr LazySeq<T> butLast(const predicate<T> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, T>>
+  [[nodiscard]] constexpr LazySeq<T> butLast(const Lambda &pred) const;
   [[nodiscard]] constexpr LazySeq<T> butLast(const T &item) const;
-  [[nodiscard]] constexpr LazySeq<T> butLastByIndex(const predicate<indexed_t<T>> &pred) const;
+  template<class Lambda, class = when_is_predicate<Lambda, indexed_t<T>>>
+  [[nodiscard]] constexpr LazySeq<T> butLastByIndex(const Lambda &pred) const;
 
   [[nodiscard]] virtual ReversedLazySeq<T> reverse() const;
   template<class R>
@@ -429,21 +481,32 @@ class LazySeq {
                                           const std::function<S(indexed_t<T>)> &valueFunc =
                                           [](indexed_t<T> pair) -> T { return pair.second; },
                                           const std::function<R(LazySeq<S>)> &seqFunc = identity<LazySeq<S>>) const;
-
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy(const comparer<T> &comp = std::less<T>()) const;
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending(const comparer<T> &comp = std::less<T>()) const;
-  template<class R>
+  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy(const Lambda &comp) const;
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy() const;
+  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending(const Lambda &comp) const;
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending() const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
   constexpr OrderedLazySeq<T> orderBy(const std::function<R(T)> &func,
-                                      const comparer<R> &comp = std::less<R>()) const;
+                                      const Lambda &comp) const;
   template<class R>
+  constexpr OrderedLazySeq<T> orderBy(const std::function<R(T)> &func) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
   constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                        const comparer<R> &comp = std::less<R>()) const;
+                                                        const Lambda &comp) const;
   template<class R>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const std::function<R(indexed_t<T>)> &func) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
   constexpr OrderedLazySeq<T> orderByDescending(const std::function<R(T)> &func,
-                                                const comparer<R> &comp = std::less<R>()) const;
+                                                const Lambda &comp) const;
   template<class R>
+  constexpr OrderedLazySeq<T> orderByDescending(const std::function<R(T)> &func) const;
+  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
   constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                                    const comparer<R> &comp = std::less<R>()) const;
+                                                                    const Lambda &com) const;
+  template<class R>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func) const;
 
   [[nodiscard]] constexpr bool hasSpecialSkipHelper() const;
   [[nodiscard]] auto applySkipHelper(wide_size_t count) const;
@@ -511,8 +574,8 @@ class LazyIterator : public std::iterator<std::input_iterator_tag, T> {
  private:
   node_ptr<T> evaluated;
 };
-template<class T>
-constexpr static comparer<T> descendingComparer(const comparer<T> &comp);
+template<class T, class Lambda, class = when_is_comparer<Lambda, T>>
+constexpr static auto descendingComparer(const Lambda &comp);
 
 template<class Iter, class... Args>
 LazySeq(Iter begin, Iter end, Args... captured) -> LazySeq<typename std::iterator_traits<Iter>::value_type>;
@@ -529,7 +592,7 @@ constexpr std::function<bool(Args...)> negate(const std::function<bool(Args...)>
 //TODO replace with std::...
 
 template<class T>
-constexpr predicate<T> dividesBy(const T &n);
+constexpr auto dividesBy(const T &n);
 
 template<class T>
 constexpr bool even(const T &item);
@@ -548,17 +611,17 @@ template<class T>
 constexpr T decrement(T obj);
 
 template<class T>
-constexpr predicate<T> isEqualTo(const T &item);
+constexpr auto isEqualTo(const T &item);
 template<class T>
-constexpr predicate<T> isNotEqualTo(const T &item);
+constexpr auto isNotEqualTo(const T &item);
 template<class T>
-constexpr predicate<T> isLessThan(const T &item);
+constexpr auto isLessThan(const T &item);
 template<class T>
-constexpr predicate<T> isGreaterThan(const T &item);
+constexpr auto isGreaterThan(const T &item);
 template<class T>
-constexpr predicate<T> isNotLessThan(const T &item);
+constexpr auto isNotLessThan(const T &item);
 template<class T>
-constexpr predicate<T> isNotGreaterThan(const T &item);
+constexpr auto isNotGreaterThan(const T &item);
 
 template<class T>
 constexpr LazySeq<T> operator*(wide_size_t count, const LazySeq<T> &seq);

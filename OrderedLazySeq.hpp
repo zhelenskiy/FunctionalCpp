@@ -5,7 +5,8 @@
 #include "OrderedLazySeq.h"
 
 template<class T>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const comparer<T> &comp) const {
+template<class Lambda, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const Lambda &comp) const {
   return OrderedLazySeq(separateMore(classes_, comp),
                         hasSpecialPartialSkipHelper()
                         ? [*this, comp](wide_size_t count) {
@@ -20,27 +21,51 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const comparer<T> &comp) c
 }
 
 template<class T>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const comparer<T> &comp) const {
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy() const {
+  return thenBy(std::less<T>());
+}
+
+template<class T>
+template<class Lambda, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const Lambda &comp) const {
   return thenBy(descendingComparer<T>(comp));
 }
 
 template<class T>
-template<class R>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending() const {
+  return thenByDescending(std::less<T>());
+}
+
+template<class T>
+template<class R, class Lambda, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> &func,
-                                                      const comparer<R> &comp) const {
+                                                      const Lambda &comp) const {
   return keys(map<std::pair<T, R>>([func](const T &item) { return std::pair{item, func(item)}; })
                   .thenBy([comp](const auto &pair1, const auto &pair2) { return comp(pair1.second, pair2.second); }));
 }
 
 template<class T>
 template<class R>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> &func) const {
+  return thenBy(func, std::less<R>());
+}
+
+template<class T>
+template<class R, class Lambda, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const std::function<R(T)> &func,
-                                                                const comparer<R> &comp) const {
+                                                                const Lambda &comp) const {
   return thenBy<R>(func, descendingComparer<R>(comp));
 }
 
 template<class T>
-auto OrderedLazySeq<T>::partition(const equivClass<T> &items, const comparer<T> &comp) {
+template<class R>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const std::function<R(T)> &func) const {
+  return thenByDescending(func, std::less<R>());
+}
+
+template<class T>
+template<class Lambda, class>
+auto OrderedLazySeq<T>::partition(const equivClass<T> &items, const Lambda &comp) {
   equivClass<T> less, equal, greater;
   if (!items.empty()) {
     T pivot = items[getRandomIndex(0, items.size())];
@@ -55,7 +80,8 @@ auto OrderedLazySeq<T>::partition(const equivClass<T> &items, const comparer<T> 
 
 template<class T>
 //template<bool stable>
-equivClasses<T> OrderedLazySeq<T>::separateMore(const equivClasses<T> &seq, const comparer<T> &comp) {
+template<class Lambda, class>
+equivClasses<T> OrderedLazySeq<T>::separateMore(const equivClasses<T> &seq, const Lambda &comp) {
   return seq.template mapMany<equivClasses<T>>([comp](const equivClass<T> &vec) -> equivClasses<T> {
     if (vec.empty()) {
       return {};
@@ -107,7 +133,8 @@ std::function<equivClass<R>(equivClass<T>)> OrderedLazySeq<T>::vectorMap(const s
 }
 
 template<class T>
-std::function<equivClass<T>(equivClass<T>)> OrderedLazySeq<T>::vectorFilter(const predicate<T> &pred) {
+template<class Lambda, class>
+std::function<equivClass<T>(equivClass<T>)> OrderedLazySeq<T>::vectorFilter(const Lambda &pred) {
   return [pred](const equivClass<T> &vec) {
     equivClass<T> res;
     for (const auto &item: vec) {
@@ -120,9 +147,10 @@ std::function<equivClass<T>(equivClass<T>)> OrderedLazySeq<T>::vectorFilter(cons
 }
 
 template<class T>
+template<class Lambda, class>
 std::pair<wide_size_t, equivClasses<T>> OrderedLazySeq<T>::smartSkip(const equivClass<T> &items,
                                                                      wide_size_t count,
-                                                                     const comparer<T> &comp) {
+                                                                     const Lambda &comp) {
   if (count >= items.size()) {
     return {count - items.size(), {}};
   }
@@ -142,7 +170,8 @@ std::pair<wide_size_t, equivClasses<T>> OrderedLazySeq<T>::smartSkip(const equiv
 }
 
 template<class T>
-equivClass<T> OrderedLazySeq<T>::stdSort(const equivClass<T> &items, const comparer<T> &comp) {
+template<class Lambda, class>
+equivClass<T> OrderedLazySeq<T>::stdSort(const equivClass<T> &items, const Lambda &comp) {
   auto items_copy = items;/*stable*/
   std::stable_sort(items_copy.begin(), items_copy.end(), comp);
   return items_copy;
@@ -197,7 +226,8 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skip(wide_size_t count) const {
 }
 
 template<class T>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::filter(const predicate<T> &pred) const {
+template<class Lambda, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::filter(const Lambda &pred) const {
   return OrderedLazySeq<T>(classes_.template map<equivClass<T>>(vectorFilter(pred)));
 }
 
@@ -216,18 +246,20 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::take(wide_size_t count) const {
 }
 
 template<class T>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::takeWhile(const predicate<T> &pred) const {
+template<class Lambda, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::takeWhile(const Lambda &pred) const {
   return OrderedLazySeq<T>(getTakenWhileClasses(classes_, pred));
 }
 
 template<class T>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skipWhile(const predicate<T> &pred) const {
+template<class Lambda, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skipWhile(const Lambda &pred) const {
   return OrderedLazySeq<T>(getSkippedWhileClasses(classes_, pred));
 }
 
 template<class T>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenClasses(const equivClasses<T> &classes, wide_size_t count) {
-  return classes.template mapByNode<equivClass<T>>([count](auto node) {
+  return classes.mapByNode([count](auto node) {
     if (count < node->first.size()) {
       node->first.resize(count);
       node->second = equivClasses<T>();
@@ -239,9 +271,10 @@ constexpr equivClasses<T> OrderedLazySeq<T>::getTakenClasses(const equivClasses<
 }
 
 template<class T>
+template<class Lambda, class>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenWhileClasses(const equivClasses<T> &classes,
-                                                                  const predicate<T> &pred) {
-  return classes.template mapByNode<equivClass<T>>([pred](auto node) {
+                                                                  const Lambda &pred) {
+  return classes.mapByNode([pred = pred](auto node) {
     wide_size_t count = 0;
     for (; count < node->first.size() && pred(node->first[count]); ++count);
     if (count < node->first.size()) {
@@ -255,9 +288,10 @@ constexpr equivClasses<T> OrderedLazySeq<T>::getTakenWhileClasses(const equivCla
 }
 
 template<class T>
+template<class Lambda, class>
 constexpr equivClasses<T> OrderedLazySeq<T>::getSkippedWhileClasses(const equivClasses<T> &classes,
-                                                                    const predicate<T> &pred) {
-  return classes.template mapByNode<equivClass<T>>([pred](auto node) {
+                                                                    const Lambda &pred) {
+  return classes.mapByNode([pred = pred](auto node) {
     decltype(node->first.begin()) found;
     while (node) {
       auto &vec = node->first;

@@ -892,7 +892,7 @@ void testReverse() {
   trace();
   trace(naturalNumbers().reverse().filter(even<natural_t>).reverse().take(10));
   trace(range(1, 10).reverse().filter(even<natural_t>));
-  auto multiplyBy2 = partial(std::multiplies<int>(), 2);
+  auto multiplyBy2 = partial(std::multiplies<>(), 2);
   trace(naturalNumbers().reverse().map<natural_t>(multiplyBy2).reverse().take(10));
   trace(range(1, 10).reverse().map<int>(multiplyBy2));
   trace(naturalNumbers().reverse().concat(range<natural_t>(1, 5)).reverse().take(10));
