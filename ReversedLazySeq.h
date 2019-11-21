@@ -25,8 +25,8 @@ class ReversedLazySeq : public LazySeq<T> {
   constexpr ReversedLazySeq<T> filter(const Lambda &pred) const;
   constexpr ReversedLazySeq<T> rest() const;
   constexpr ReversedLazySeq<T> butLast() const;
-  template<class R>
-  constexpr ReversedLazySeq<R> map(const std::function<R(T)> &func) const;
+  template<class Lambda, class R = ResType<Lambda, T>>
+  constexpr ReversedLazySeq<R> map(const Lambda &func) const;
   constexpr ReversedLazySeq<T> concat(const LazySeq<T>& other) const;
   template<class R>
   constexpr ReversedLazySeq<std::pair<T, R>> match(const LazySeq<R>& other) const;

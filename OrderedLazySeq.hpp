@@ -40,7 +40,7 @@ template<class T>
 template<class R, class Lambda, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> &func,
                                                       const Lambda &comp) const {
-  return keys(map<std::pair<T, R>>([func](const T &item) { return std::pair{item, func(item)}; })
+  return keys(map([func](const T &item) { return std::pair{item, func(item)}; })
                   .thenBy([comp](const auto &pair1, const auto &pair2) { return comp(pair1.second, pair2.second); }));
 }
 
@@ -107,21 +107,21 @@ equivClasses<T> OrderedLazySeq<T>::separateMore(const equivClasses<T> &seq, cons
 }
 
 template<class T>
-template<class R>
-constexpr OrderedLazySeq<R> OrderedLazySeq<T>::map(const std::function<R(T)> &func) const {
+template<class Lambda, class R>
+constexpr OrderedLazySeq<R> OrderedLazySeq<T>::map(const Lambda &func) const {
   return OrderedLazySeq<R>(
-      classes_.template map<equivClass<R>>(vectorMap(func)),
+      classes_.map(vectorMap(func)),
       hasSpecialPartialSkipHelper()
       ? [func, *this](wide_size_t count) {
         auto[toBeSkipped, rest] = applyPartialSkipHelper(count);
-        return std::pair{toBeSkipped, rest.template map<equivClass<R>>(vectorMap(func))};
+        return std::pair{toBeSkipped, rest.map(vectorMap(func))};
       }
       : typename OrderedLazySeq<R>::partial_skip_helper_t());
 }
 
 template<class T>
-template<class R>
-std::function<equivClass<R>(equivClass<T>)> OrderedLazySeq<T>::vectorMap(const std::function<R(T)> &func) {
+template<class Lambda, class R>
+auto OrderedLazySeq<T>::vectorMap(const Lambda &func) {
   return [func](const equivClass<T> &vec) {
     equivClass<R> res;
     res.reserve(vec.size());
@@ -134,7 +134,7 @@ std::function<equivClass<R>(equivClass<T>)> OrderedLazySeq<T>::vectorMap(const s
 
 template<class T>
 template<class Lambda, class>
-std::function<equivClass<T>(equivClass<T>)> OrderedLazySeq<T>::vectorFilter(const Lambda &pred) {
+auto OrderedLazySeq<T>::vectorFilter(const Lambda &pred) {
   return [pred](const equivClass<T> &vec) {
     equivClass<T> res;
     for (const auto &item: vec) {
@@ -228,7 +228,7 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skip(wide_size_t count) const {
 template<class T>
 template<class Lambda, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::filter(const Lambda &pred) const {
-  return OrderedLazySeq<T>(classes_.template map<equivClass<T>>(vectorFilter(pred)));
+  return OrderedLazySeq<T>(classes_.map(vectorFilter(pred)));
 }
 
 template<class T>

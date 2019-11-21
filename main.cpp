@@ -491,14 +491,14 @@ void testOrder() {
   auto seq3 = range(1, 12).orderBy<char>(fn1(std::to_string(it)[0]));
   for (const auto &seq: {seq3, seq3.thenBy(), seq3.thenByDescending()}) {
     orderedTrace(seq);
-    orderedTrace(seq.template map<std::string>([](int x) {
+    orderedTrace(seq.map([](int x) {
       auto str = std::to_string(x);
       std::reverse(str.begin(), str.end());
       return str;
     }).thenBy());
     trace();
   }
-  auto seq4 = (square(range2) * range2).map<std::string>(fn1(std::to_string(it.first.first)
+  auto seq4 = (square(range2) * range2).map(fn1(std::to_string(it.first.first)
                                                                  + std::to_string(it.first.second)
                                                                  + std::to_string(it.second)));
   auto charGetter = [](size_t i) { return fn1(it[i]); };
@@ -515,7 +515,7 @@ void testOrder() {
   trace();
   trace(range(1, 100000).orderByDescending().skip(49000).skip(50690));
   trace();
-  trace(range(1, 100000).orderByDescending().template map<int>(partial(std::multiplies<>(), 2)).skip(99690));
+  trace(range(1, 100000).orderByDescending().map(partial(std::multiplies<>(), 2)).skip(99690));
   trace();
   trace(seq4.orderByDescending<char>(charGetter(0)).skip(3));
   trace(seq4.orderByDescending<char>(charGetter(0)).skip(3).thenBy());
@@ -892,9 +892,9 @@ void testReverse() {
   trace();
   trace(naturalNumbers().reverse().filter(even<natural_t>).reverse().take(10));
   trace(range(1, 10).reverse().filter(even<natural_t>));
-  auto multiplyBy2 = partial(std::multiplies<>(), 2);
-  trace(naturalNumbers().reverse().map<natural_t>(multiplyBy2).reverse().take(10));
-  trace(range(1, 10).reverse().map<int>(multiplyBy2));
+  auto multiplyBy2 = partial(std::multiplies<int>(), 2);
+  trace(naturalNumbers().reverse().map(multiplyBy2).reverse().take(10));
+  trace(range(1, 10).reverse().map(multiplyBy2));
   trace(naturalNumbers().reverse().concat(range<natural_t>(1, 5)).reverse().take(10));
   trace(range(1, 10).reverse().concat(range(50, 5)));
   trace(naturalNumbers().reverse().match(integerNumbers().reverse()).reverse().take(10));

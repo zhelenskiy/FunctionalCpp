@@ -39,8 +39,8 @@ class OrderedLazySeq : public LazySeq<T> {
   template<class R>
   constexpr OrderedLazySeq<T> thenByDescending(const std::function<R(T)> &func) const;
 
-  template<class R>
-  constexpr OrderedLazySeq<R> map(const std::function<R(T)> &func) const;
+  template<class Lambda, class R = ResType<Lambda, T>>
+  constexpr OrderedLazySeq<R> map(const Lambda &func) const;
 
   constexpr OrderedLazySeq<T> take(wide_size_t count) const;
   template<class Lambda, class = when_is_predicate<Lambda, T>>
@@ -83,10 +83,10 @@ class OrderedLazySeq : public LazySeq<T> {
 //  template<bool stable>
   template<class Lambda, class = when_is_comparer<Lambda, T>>
   static equivClass<T> stdSort(const equivClass<T> &items, const Lambda &comp);
-  template<class R>
-  static std::function<equivClass<R>(equivClass<T>)> vectorMap(const std::function<R(T)> &func);
+  template<class Lambda, class R = ResType<Lambda, T>>
+  static auto vectorMap(const Lambda &func);
   template<class Lambda, class = when_is_predicate<Lambda, T>>
-  static std::function<equivClass<T>(equivClass<T>)> vectorFilter(const Lambda &pred);
+  static auto vectorFilter(const Lambda &pred);
   constexpr static equivClasses<T> getTakenClasses(const equivClasses<T> &classes, wide_size_t count);
   template<class Lambda, class = when_is_predicate<Lambda, T>>
   constexpr static equivClasses<T> getTakenWhileClasses(const equivClasses<T> &classes, const Lambda &pred);

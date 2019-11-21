@@ -38,9 +38,9 @@ constexpr ReversedLazySeq<T> ReversedLazySeq<T>::butLast() const {
 }
 
 template<class T>
-template<class R>
-constexpr ReversedLazySeq<R> ReversedLazySeq<T>::map(const std::function<R(T)> &func) const {
-  return ReversedLazySeq<R>(LazySeq<T>::template map<R>(func), nonReversedSeq_.template map<R>(func));
+template<class Lambda, class R>
+constexpr ReversedLazySeq<R> ReversedLazySeq<T>::map(const Lambda &func) const {
+  return ReversedLazySeq<R>(LazySeq<T>::map(func), nonReversedSeq_.map(func));
 }
 
 template<class T>

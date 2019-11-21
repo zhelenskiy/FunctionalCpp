@@ -263,8 +263,8 @@ class LazySeq {
   constexpr LazySeq<R> mapByNode(const Lambda &f) const;
   template<class Lambda, class = void, class R = decltype(std::declval<ResType<Lambda, node_ptr<T>>>()->first)>
   constexpr LazySeq<R> mapByNode(const Lambda &f) const;
-  template<class R>
-  constexpr LazySeq<R> map(const std::function<R(T)> &func) const;
+  template<class Lambda, class R = ResType<Lambda, T>>
+  constexpr LazySeq<R> map(const Lambda &func) const;
   template<class R>
   constexpr LazySeq<R> mapByIndex(const std::function<R(indexed_t<T>)> &func) const;
   template<class Container>
