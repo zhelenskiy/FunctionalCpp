@@ -26,9 +26,9 @@ If I take items 100 000th to 1 000 000th from 10 000 000, only 900 000 items bec
 
 ---
 
-`makeLazy(std::move(someStdVector)).map<long>(someFunc).itemAt(400)` is O(1).
+`makeLazy(std::move(someStdVector))map(someFunc).itemAt(400)` is O(1).
 
-`makeLazy(std::move(someStdVector)).map<long>(someFunc).count()` is O(1) too.
+`makeLazy(std::move(someStdVector))map(someFunc).count()` is O(1) too.
 
 ---
 

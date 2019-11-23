@@ -22,39 +22,39 @@ class OrderedLazySeq : public LazySeq<T> {
   constexpr OrderedLazySeq<T> &operator=(const OrderedLazySeq<T> &) = default;
   constexpr OrderedLazySeq<T> &operator=(OrderedLazySeq<T> &&) noexcept = default;
 
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
-  constexpr OrderedLazySeq<T> thenBy(const Lambda &comp) const;
+  template<class Func, class = when_is_comparer<Func, T>>
+  constexpr OrderedLazySeq<T> thenBy(const Func &comp) const;
   constexpr OrderedLazySeq<T> thenBy() const;
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
-  constexpr OrderedLazySeq<T> thenByDescending(const Lambda &comp) const;
+  template<class Func, class = when_is_comparer<Func, T>>
+  constexpr OrderedLazySeq<T> thenByDescending(const Func &comp) const;
   constexpr OrderedLazySeq<T> thenByDescending() const;
-  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  template<class R, class Func, class = when_is_comparer<Func, R>>
   constexpr OrderedLazySeq<T> thenBy(const std::function<R(T)> &func,
-                                     const Lambda &comp) const;
+                                     const Func &comp) const;
   template<class R>
   constexpr OrderedLazySeq<T> thenBy(const std::function<R(T)> &func) const;
-  template<class R, class Lambda, class = when_is_comparer<Lambda, R>>
+  template<class R, class Func, class = when_is_comparer<Func, R>>
   constexpr OrderedLazySeq<T> thenByDescending(const std::function<R(T)> &func,
-                                               const Lambda &comp) const;
+                                               const Func &comp) const;
   template<class R>
   constexpr OrderedLazySeq<T> thenByDescending(const std::function<R(T)> &func) const;
 
-  template<class Lambda, class R = ResType<Lambda, T>>
-  constexpr OrderedLazySeq<R> map(const Lambda &func) const;
+  template<class Func, class R = ResType<Func, T>>
+  constexpr OrderedLazySeq<R> map(const Func &func) const;
 
   constexpr OrderedLazySeq<T> take(wide_size_t count) const;
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  constexpr OrderedLazySeq<T> takeWhile(const Lambda &pred) const;
+  template<class Func, class = when_is_predicate<Func, T>>
+  constexpr OrderedLazySeq<T> takeWhile(const Func &pred) const;
 
   constexpr OrderedLazySeq<T> rest() const;
 //  constexpr OrderedLazySeq<T> butLast() const;
 
   constexpr OrderedLazySeq<T> skip(wide_size_t count) const;
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  constexpr OrderedLazySeq<T> skipWhile(const Lambda &pred) const;
+  template<class Func, class = when_is_predicate<Func, T>>
+  constexpr OrderedLazySeq<T> skipWhile(const Func &pred) const;
 
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  constexpr OrderedLazySeq<T> filter(const Lambda &pred) const;
+  template<class Func, class = when_is_predicate<Func, T>>
+  constexpr OrderedLazySeq<T> filter(const Func &pred) const;
 
   [[nodiscard]] constexpr bool hasSpecialPartialSkipHelper() const;
   constexpr std::pair<wide_size_t, equivClasses<T>> applyPartialSkipHelper(wide_size_t count) const;
@@ -65,33 +65,33 @@ class OrderedLazySeq : public LazySeq<T> {
   equivClasses<T> classes_;
   partial_skip_helper_t partialSkipHelper_;
 
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
-  static auto partition(const equivClass<T> &items, const Lambda &comp);
+  template<class Func, class = when_is_comparer<Func, T>>
+  static auto partition(const equivClass<T> &items, const Func &comp);
 
 //  template<bool stable>
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
-  static equivClasses<T> separateMore(const equivClasses<T> &seq, const Lambda &comp);
+  template<class Func, class = when_is_comparer<Func, T>>
+  static equivClasses<T> separateMore(const equivClasses<T> &seq, const Func &comp);
 
 //  template<bool stable>
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
+  template<class Func, class = when_is_comparer<Func, T>>
   static std::pair<wide_size_t, equivClasses<T>> smartSkip(const equivClass<T> &items,
                                                            wide_size_t count,
-                                                           const Lambda &comp);
+                                                           const Func &comp);
 //  template<bool stable>
   static std::pair<wide_size_t, node_ptr<equivClass<T>>> simpleSkip(wide_size_t count, const equivClasses<T> &items);
 
 //  template<bool stable>
-  template<class Lambda, class = when_is_comparer<Lambda, T>>
-  static equivClass<T> stdSort(const equivClass<T> &items, const Lambda &comp);
-  template<class Lambda, class R = ResType<Lambda, T>>
-  static auto vectorMap(const Lambda &func);
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  static auto vectorFilter(const Lambda &pred);
+  template<class Func, class = when_is_comparer<Func, T>>
+  static equivClass<T> stdSort(const equivClass<T> &items, const Func &comp);
+  template<class Func, class R = ResType<Func, T>>
+  static auto vectorMap(const Func &func);
+  template<class Func, class = when_is_predicate<Func, T>>
+  static auto vectorFilter(const Func &pred);
   constexpr static equivClasses<T> getTakenClasses(const equivClasses<T> &classes, wide_size_t count);
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  constexpr static equivClasses<T> getTakenWhileClasses(const equivClasses<T> &classes, const Lambda &pred);
-  template<class Lambda, class = when_is_predicate<Lambda, T>>
-  constexpr static equivClasses<T> getSkippedWhileClasses(const equivClasses<T> &classes, const Lambda &pred);
+  template<class Func, class = when_is_predicate<Func, T>>
+  constexpr static equivClasses<T> getTakenWhileClasses(const equivClasses<T> &classes, const Func &pred);
+  template<class Func, class = when_is_predicate<Func, T>>
+  constexpr static equivClasses<T> getSkippedWhileClasses(const equivClasses<T> &classes, const Func &pred);
 };
 #include "OrderedLazySeq.hpp"
 
