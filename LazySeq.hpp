@@ -1283,9 +1283,9 @@ LazySeq<std::pair<F, LazySeq<T>>> LazySeq<T>::groupByIndexBy(const KeyFinder &ke
   return getIndexed().groupBy(keyFinder, [](const indexed_t<T> &item) { return item.second; });
 }
 
-template<class T>
-template<class Func, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const Func &comp) const {
+/*template<class T>
+template<class Comparer, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const Comparer &comp) const {
   return makeOrdered().thenBy(comp);
 }
 
@@ -1295,8 +1295,8 @@ constexpr OrderedLazySeq<T> LazySeq<T>::orderBy() const {
 }
 
 template<class T>
-template<class Func, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const Func &comp) const {
+template<class Comp, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const Comp &comp) const {
   return makeOrdered().thenByDescending(comp);
 }
 
@@ -1328,7 +1328,7 @@ template<class T>
 template<class R>
 constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByIndexBy(const std::function<R(indexed_t<T>)> &func) const {
   return orderByIndexBy(func, std::less<R>());
-}
+}*/
 
 template<class T>
 constexpr OrderedLazySeq<T> LazySeq<T>::makeOrdered() const {
@@ -1336,7 +1336,7 @@ constexpr OrderedLazySeq<T> LazySeq<T>::makeOrdered() const {
                            [*this](size_t count) { return std::pair{count, equivClasses<T>{toVector()}}; });
 }
 
-template<class T>
+/*template<class T>
 template<class R, class Func, class>
 constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const std::function<R(T)> &func,
                                                           const Func &comp) const {
@@ -1360,7 +1360,7 @@ template<class T>
 template<class R>
 constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func) const {
   return orderByDescendingByIndexBy(func, std::less<R>());
-}
+}*/
 
 template<class T>
 template<class Func, class>
@@ -1607,20 +1607,20 @@ template<class T>
 template<class... Args>
 LazySeq<T> LazySeq<T>::setCopyArgs(const Args &... args) const {
   auto seq = LazySeq(*this);
-  if (copySizeOf(args...) < max_copy_size) {
+  /*if (copySizeOf(args...) < max_copy_size) {
     seq.copySize_ = copySizeOf(args...);
   } else {
     wrapInHeap(seq);
-  }
+  }*/
   return seq;
 }
 template<class T>
 LazySeq<T> LazySeq<T>::setCopySize(size_t size) const {
   auto seq = *this;
-  seq.copySize_ = std::min(size, max_copy_size);
+  /*seq.copySize_ = std::min(size, max_copy_size);
   if (seq.copySize_ == size) {
     wrapInHeap(seq);
-  }
+  }*/
   return seq;
 }
 

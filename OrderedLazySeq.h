@@ -10,7 +10,7 @@
 template<class T>
 class OrderedLazySeq : public LazySeq<T> {
  public:
-  using partial_skip_helper_t = std::function<std::pair<wide_size_t, equivClasses<T>>(wide_size_t)>;
+  using partial_skip_helper_t = SmartFunction<std::pair<wide_size_t, equivClasses<T>>(wide_size_t)>;
 
   constexpr OrderedLazySeq() = default;
   constexpr OrderedLazySeq(const OrderedLazySeq<T> &) = default;
@@ -22,22 +22,22 @@ class OrderedLazySeq : public LazySeq<T> {
   constexpr OrderedLazySeq<T> &operator=(const OrderedLazySeq<T> &) = default;
   constexpr OrderedLazySeq<T> &operator=(OrderedLazySeq<T> &&) noexcept = default;
 
-  template<class Func, class = when_is_comparer<Func, T>>
-  constexpr OrderedLazySeq<T> thenBy(const Func &comp) const;
+  template<class Comparer, class = when_is_comparer<Comparer, T>>
+  constexpr OrderedLazySeq<T> thenBy(const Comparer &comp) const;
   constexpr OrderedLazySeq<T> thenBy() const;
-  template<class Func, class = when_is_comparer<Func, T>>
-  constexpr OrderedLazySeq<T> thenByDescending(const Func &comp) const;
+  template<class Comparer, class = when_is_comparer<Comparer, T>>
+  constexpr OrderedLazySeq<T> thenByDescending(const Comparer &comp) const;
   constexpr OrderedLazySeq<T> thenByDescending() const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<T> thenBy(const std::function<R(T)> &func,
-                                     const Func &comp) const;
-  template<class R>
-  constexpr OrderedLazySeq<T> thenBy(const std::function<R(T)> &func) const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<T> thenByDescending(const std::function<R(T)> &func,
-                                               const Func &comp) const;
-  template<class R>
-  constexpr OrderedLazySeq<T> thenByDescending(const std::function<R(T)> &func) const;
+  template<class ValueFunc, class Comparer, class R = ResType<ValueFunc, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> thenBy(const ValueFunc &func,
+                                     const Comparer &comp) const;
+  template<class ValueFunc, class R = ResType<ValueFunc, T>, class = void>
+  constexpr OrderedLazySeq<T> thenBy(const ValueFunc &func) const;
+  template<class ValueFunc, class Comparer, class R = ResType<ValueFunc, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> thenByDescending(const ValueFunc &func,
+                                               const Comparer &comp) const;
+  template<class ValueFunc, class = ResType<ValueFunc, T>, class = void>
+  constexpr OrderedLazySeq<T> thenByDescending(const ValueFunc &func) const;
 
   template<class Func, class R = ResType<Func, T>>
   constexpr OrderedLazySeq<R> map(const Func &func) const;

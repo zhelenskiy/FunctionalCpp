@@ -37,9 +37,8 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending() const {
 }
 
 template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> &func,
-                                                      const Func &comp) const {
+template<class ValueFunc, class Comparer, class, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const ValueFunc &func, const Comparer &comp) const {
   return keys(map([func = func](const T &item) { return std::pair{item, func(item)}; })
                   .thenBy([comp = comp](const auto &pair1, const auto &pair2) {
                     return comp(pair1.second,
@@ -48,21 +47,21 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> 
 }
 
 template<class T>
-template<class R>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const std::function<R(T)> &func) const {
+template<class ValueFunc, class R, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const ValueFunc &func) const {
   return thenBy(func, std::less<R>());
 }
 
 template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const std::function<R(T)> &func,
-                                                                const Func &comp) const {
-  return thenBy<R>(func, descendingComparer(comp));
+template<class ValueFunc, class Comparer, class, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const ValueFunc &func,
+                                                                const Comparer &comp) const {
+  return thenBy(func, descendingComparer(comp));
 }
 
 template<class T>
-template<class R>
-constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const std::function<R(T)> &func) const {
+template<class ValueFunc, class R, class>
+constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const ValueFunc &func) const {
   return thenByDescending(func, std::less<R>());
 }
 

@@ -22,12 +22,13 @@
 #include <set>
 #include <unordered_set>
 
+#include "SmartFunction.h"
+
 template<class T>
 class LazySeq;
 
 template<class T>
 class OrderedLazySeq;
-
 template<class T>
 class ReversedLazySeq;
 
@@ -39,7 +40,8 @@ using node = std::pair<T, LazySeq<T>>;
 template<class T>
 using node_ptr = std::optional<node<T>>;
 template<class T>
-using fabric = std::function<node_ptr<T>()>;
+using fabric = SmartFunction<node_ptr<T>()>;
+
 template<class T>
 using equivClass = std::vector<T>;
 template<class T>
@@ -120,7 +122,7 @@ class LazySeq {
   typedef typename std::allocator_traits<allocator_type>::const_pointer const_pointer;
   [[nodiscard]] constexpr const_iterator begin() const;
   [[nodiscard]] constexpr const_iterator end() const;
-  using skip_helper_t = std::function<std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>;
+  using skip_helper_t = SmartFunction<std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>;
 
   /*implicit */LazySeq<T>(std::initializer_list<T> list);
   template<class Iter, class... Args>
@@ -508,32 +510,53 @@ class LazySeq {
   LazySeq<std::pair<F, R>> groupByIndexBy(const KeyFinder &keyFinder,
                                           const ValueFunc &valueFunc,
                                           const Mapper &seqFunc) const;
-  template<class Func, class = when_is_comparer<Func, T>>
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy(const Func &comp) const;
+  /*template<class Comparer, class = when_is_comparer<Comparer, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy(const Comparer &comp) const;
   [[nodiscard]] constexpr OrderedLazySeq<T> orderBy() const;
-  template<class Func, class = when_is_comparer<Func, T>>
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending(const Func &comp) const;
+  template<class Comparer, class = when_is_comparer<Comparer, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending(const Comparer &comp) const;
   [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending() const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<T> orderBy(const std::function<R(T)> &func,
-                                      const Func &comp) const;
-  template<class R>
-  constexpr OrderedLazySeq<T> orderBy(const std::function<R(T)> &func) const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                        const Func &comp) const;
-  template<class R>
-  constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const std::function<R(indexed_t<T>)> &func) const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<T> orderByDescending(const std::function<R(T)> &func,
-                                                const Func &comp) const;
-  template<class R>
-  constexpr OrderedLazySeq<T> orderByDescending(const std::function<R(T)> &func) const;
-  template<class R, class Func, class = when_is_comparer<Func, R>>
-  constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                                    const Func &com) const;
-  template<class R>
-  constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func) const;
+  template<class Comparer, class Mapper, class R = ResType<Mapper, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> orderBy(const Mapper &func,
+                                      const Comparer &comp) const;*/
+
+  template<class... Args>
+  constexpr OrderedLazySeq<T> orderBy(const Args &... args) const {
+    return makeOrdered().thenBy(args...);
+  }
+
+  template<class... Args>
+  constexpr OrderedLazySeq<T> orderByDescending(const Args &... args) const {
+    return makeOrdered().thenByDescending(args...);
+  }
+
+  template<class... Args>
+  constexpr OrderedLazySeq<T> orderByIndexBy(const Args &... args) const {
+    return getIndexed().orderBy(args...).map([](auto &&pair) { return pair.second; });
+  }
+
+  template<class... Args>
+  constexpr OrderedLazySeq<T> orderByDescendingByIndexBy(const Args &... args) const {
+    return getIndexed().orderByDescending(args...).map([](auto &&pair) { return pair.second; });
+  }
+
+  /*template<class Mapper, class = ResType<Mapper, T>, class = void>
+  constexpr OrderedLazySeq<T> orderBy(const Mapper &func) const;
+  template<class Mapper, class Comparer, class R = ResType<Mapper, indexed_t<T>>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const Mapper &func,
+                                                        const Comparer &comp) const;
+  template<class Mapper, class = ResType<Mapper, indexed_t<T>>>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByIndexBy(const Mapper &func) const;
+  template<class Mapper, class Comparer, class R = ResType<Mapper, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> orderByDescending(const Mapper &func,
+                                                const Comparer &comp) const;
+  template<class Mapper, class R = ResType<Mapper, T>, class = void>
+  constexpr OrderedLazySeq<T> orderByDescending(const Mapper &func) const;
+  template<class Mapper, class Comparer, class R = ResType<Mapper, indexed_t<T>>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const Mapper &func,
+                                                                    const Comparer &com) const;
+  template<class Mapper, class = ResType<Mapper, indexed_t<T>>>
+  constexpr OrderedLazySeq<indexed_t<T>> orderByDescendingByIndexBy(const Mapper &func) const;*/
 
   [[nodiscard]] constexpr bool hasSpecialSkipHelper() const;
   [[nodiscard]] auto applySkipHelper(wide_size_t count) const;
@@ -545,10 +568,10 @@ class LazySeq {
 
   [[nodiscard]] constexpr OrderedLazySeq<T> makeOrdered() const;
 
-  size_t copySizeOf() const;
+  [[nodiscard]] size_t copySizeOf() const;
 
   template<class Arg, class... Args>
-  size_t copySizeOf(const Arg &arg, const Args &... args) const;
+  [[nodiscard]] size_t copySizeOf(const Arg &arg, const Args &... args) const;
 
   template<class Arg, class... Args>
   size_t copySizeOf(const LazySeq<Arg> &arg, const Args &... args) const;
