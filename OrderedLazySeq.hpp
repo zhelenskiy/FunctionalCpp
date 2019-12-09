@@ -14,8 +14,8 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const Func &comp) const {
                           if (!node) {
                             return std::pair{toBeSkipped, equivClasses<T>()};
                           }
-                          auto[smallerToBeSkipped, rest] = smartSkip(node->first, toBeSkipped, comp);
-                          return std::pair{smallerToBeSkipped, rest + separateMore(node->second, comp)};
+                          auto[smallerToBeSkipped, rest] = smartSkip(getHolder(node->first), toBeSkipped, comp);
+                          return std::pair{smallerToBeSkipped, getClasses(rest) + separateMore(node->second, comp)};
                         }
                         : partial_skip_helper_t());
 }
@@ -41,8 +41,7 @@ template<class ValueFunc, class Comparer, class, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenBy(const ValueFunc &func, const Comparer &comp) const {
   return keys(map([func = func](const T &item) { return std::pair{item, func(item)}; })
                   .thenBy([comp = comp](const auto &pair1, const auto &pair2) {
-                    return comp(pair1.second,
-                                pair2.second);
+                    return comp(pair1.second, pair2.second);
                   }));
 }
 
@@ -67,127 +66,111 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::thenByDescending(const ValueFunc 
 
 template<class T>
 template<class Func, class>
-auto OrderedLazySeq<T>::partition(const equivClass<T> &items, const Func &comp) {
-  equivClass<T> less, equal, greater;
-  if (!items.empty()) {
-    T pivot = items[getRandomIndex(0, items.size())];
-    for (auto &item: items) {
-      (comp(item, pivot)
-       ? less
-       : comp(pivot, item) ? greater : equal).emplace_back(std::move(item));
-    }
-  }
-  return std::tuple{less, equal, greater};
+auto OrderedLazySeq<T>::partition(typename std::vector<T>::iterator begin,
+                                  typename std::vector<T>::iterator end, const Func &comp) {
+  auto pivot = *(begin + getRandomIndex((size_t) (end - begin)));
+  auto border1 = std::partition(begin, end, [comp = comp, pivot](const auto &item) { return comp(item, pivot); });
+  auto border2 = std::find_if_not(border1, end, isEqualTo(std::move(pivot)));
+  return std::tuple{std::pair{begin, border1}, std::pair{border1, border2}, std::pair{border2, end}};
 }
 
 template<class T>
 //template<bool stable>
 template<class Func, class>
 equivClasses<T> OrderedLazySeq<T>::separateMore(const equivClasses<T> &seq, const Func &comp) {
-  return seq.mapMany([comp = comp](const equivClass<T> &vec) -> equivClasses<T> {
-    if (vec.empty()) {
+  return getClasses(getHolders(seq).mapMany([comp](const auto &class_) { return separateMore(class_, comp); }));
+  /*seq.mapMany([comp](const auto &class_) { return separateMore(getHolder(class_), comp); })*/
+}
+
+template<class T>
+//template<bool stable>
+template<class Func, class>
+SliceHolderSeq<T> OrderedLazySeq<T>::separateMore(SliceHolder<T> holder, const Func &comp) {
+  if (holder.getGuard()) {
+    auto[begin, end] = std::tie(holder.begin, holder.end);
+    if (begin == end) {
       return {};
-    } else if (vec.size() <= BUCKET_SIZE_FOR_STD_SORT_CALL) {
-      std::vector<equivClass<T>> classes{{}};
-      for (auto &&item: stdSort(vec, comp)) {
-        if (classes.back().empty() || !comp(classes.back().back(), item)) {
-          classes.back().emplace_back(std::move(item));
-        } else {
-          classes.emplace_back(std::vector{std::move(item)});
-        }
+    } else if (end - begin <= BUCKET_SIZE_FOR_STD_SORT_CALL) {
+      std::stable_sort(begin, end, comp);
+      std::vector<SliceHolder<T>> classes{};
+      auto curBegin = begin;
+      while (curBegin != end) {
+        auto curEnd = std::find_if_not(curBegin, end, isEqualTo(*curBegin));
+        classes.emplace_back(curBegin, curEnd, holder.controller);
+        curBegin = curEnd;
       }
+      holder.setReady();
       return makeLazy(std::move(classes));
     } else {
-      auto[less, equal, greater] = partition(vec, comp);
-      using classes_t = equivClasses<T>;
+      auto[less, equal, greater] = partition(begin, end, comp);
+      auto less_class = SliceHolder<T>(less.first, less.second, holder.controller->data);
+      auto equal_class = SliceHolder<T>(equal.first, equal.second, holder.controller);
+      equal_class.setReady();
+      auto greater_class = SliceHolder<T>(greater.first, greater.second, holder.controller->data);
       /*parallel*/
-      return classes_t([part = classes_t{std::move(less)}, comp = comp] { return separateMore(part, comp); })
-          + (classes_t{std::move(equal)}
-              + classes_t([part = classes_t{std::move(greater)}, comp = comp] { return separateMore(part, comp); }));
+      return SliceHolderSeq<T>([part = std::move(less_class), comp = comp] {
+        return separateMore(part, comp);
+      }) + (SliceHolder<T>(std::move(equal_class)) + SliceHolderSeq<T>([part = std::move(greater_class), comp = comp] {
+        return separateMore(part, comp);
+      }));
     }
-  });
+  } else {
+    return {holder};
+  }
 }
 
 template<class T>
 template<class Func, class R>
 constexpr OrderedLazySeq<R> OrderedLazySeq<T>::map(const Func &func) const {
+  auto nestedMap = [func = func](const auto &class_) { return class_.map(func); };
   return OrderedLazySeq<R>(
-      classes_.map(vectorMap(func)),
+      classes_.map(nestedMap),
       hasSpecialPartialSkipHelper()
-      ? [func = func, *this](wide_size_t count) {
+      ? [func = func, *this, nestedMap](wide_size_t count) {
         auto[toBeSkipped, rest] = applyPartialSkipHelper(count);
-        return std::pair{toBeSkipped, rest.map(vectorMap(func))};
+        return std::pair{toBeSkipped, rest.map(nestedMap)};
       }
       : typename OrderedLazySeq<R>::partial_skip_helper_t());
 }
 
 template<class T>
-template<class Func, class R>
-auto OrderedLazySeq<T>::vectorMap(const Func &func) {
-  return [func = func](const equivClass<T> &vec) {
-    equivClass<R> res;
-    res.reserve(vec.size());
-    for (const auto &item: vec) {
-      res.emplace_back(func(item));
-    }
-    return res;
-  };
-}
-
-template<class T>
 template<class Func, class>
-auto OrderedLazySeq<T>::vectorFilter(const Func &pred) {
-  return [pred = pred](const equivClass<T> &vec) {
-    equivClass<T> res;
-    for (const auto &item: vec) {
-      if (pred(item)) {
-        res.emplace_back(item);
-      }
-    }
-    return res;
-  };
-}
-
-template<class T>
-template<class Func, class>
-std::pair<wide_size_t, equivClasses<T>> OrderedLazySeq<T>::smartSkip(const equivClass<T> &items,
-                                                                     wide_size_t count,
-                                                                     const Func &comp) {
-  if (count >= items.size()) {
-    return {count - items.size(), {}};
+std::pair<wide_size_t, SliceHolderSeq<T>> OrderedLazySeq<T>::smartSkip(const SliceHolder<T> &holder,
+                                                                       wide_size_t count,
+                                                                       const Func &comp) {
+  if (count >= holder.size()) {
+    return {count - holder.size(), {}};
+  } else if (count == 0) {
+    return {0, separateMore(holder, comp)};
   }
-  auto[less, equal, greater] = partition(items, comp);
-  if (count < less.size() + equal.size()) {
-    auto equalOrGreaterClasses =
-        separateMore(equivClasses<T>{std::move(greater)}, comp).emplaceFront(std::move(equal));
-    if (count < less.size()) {
-      auto[newCount, newClasses] = smartSkip(less, count, comp);
+  auto[less, equal, greater] = partition(holder.begin, holder.end, comp);
+  auto equal_class = SliceHolder<T>(equal.first, equal.second, holder.controller);
+  equal_class.setReady();
+  auto greater_class = SliceHolder<T>(greater.first, greater.second, holder.controller->data);
+  auto less_size = less.second - less.first;
+  auto greaterClasses =
+      SliceHolderSeq<T>([part = greater_class, comp = comp] { return separateMore(part, comp); });
+  if (count < less_size + equal_class.size()) {
+    auto equalOrGreaterClasses = equal_class + greaterClasses;
+    if (count < less_size) {
+      auto less_class = SliceHolder<T>(less.first, less.second, holder.controller->data);
+      auto[newCount, newClasses] = smartSkip(less_class, count, comp);
       return {newCount, newClasses + equalOrGreaterClasses};
     } else /* less.size() <= count < less.size() + equal.size()*/ {
-      return {count - less.size(), equalOrGreaterClasses};
+      return {count - less_size, equalOrGreaterClasses};
     }
   } else /*count >= less.size() + equal.size()*/ {
-    return smartSkip(greater, count - less.size() - equal.size(), comp);
+    return smartSkip(std::move(greater_class), count - (equal_class.size() + less_size), comp);
   }
-}
-
-template<class T>
-template<class Func, class>
-equivClass<T> OrderedLazySeq<T>::stdSort(const equivClass<T> &items, const Func &comp) {
-  auto items_copy = items;/*stable*/
-  std::stable_sort(items_copy.begin(), items_copy.end(), comp);
-  return items_copy;
 }
 
 template<class T>
 std::pair<wide_size_t, node_ptr<equivClass<T>>> OrderedLazySeq<T>::simpleSkip(wide_size_t count,
                                                                               const equivClasses<T> &items) {
-  auto node = items.eval();
-  while (node && count >= node->first.size()) {
-    count -= node->first.size();
-    node = node->second.eval();
-  }
-  return std::pair{count, node};
+  auto node = items.skipWhile([&count](const auto &items) {
+    return items.count() <= count ? count -= items.count(), true : false;
+  }).eval();
+  return {count, node};
 }
 
 template<class T>
@@ -213,12 +196,7 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skip(wide_size_t count) const {
   return OrderedLazySeq<T>(
       equivClasses<T>([*this, count] {
         auto[toBeSkipped, node] = std::apply(simpleSkip, applyPartialSkipHelper(count));
-        if (toBeSkipped && node) {
-          auto &vec = node->first;
-          std::move(vec.begin() + toBeSkipped, vec.end(), vec.begin());
-          vec.resize(vec.size() - toBeSkipped);
-        }
-        return equivClasses<T>(node);
+        return equivClasses<T>(node && toBeSkipped ? (node->first = node->first.skip(toBeSkipped), node) : node);
       }),
       hasSpecialPartialSkipHelper()
       ? [*this, count](wide_size_t newCount) {
@@ -230,7 +208,7 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skip(wide_size_t count) const {
 template<class T>
 template<class Func, class>
 constexpr OrderedLazySeq<T> OrderedLazySeq<T>::filter(const Func &pred) const {
-  return OrderedLazySeq<T>(classes_.map(vectorFilter(pred)));
+  return OrderedLazySeq<T>(classes_.map([pred = pred](const auto &seq) { return seq.filter(pred); }));
 }
 
 template<class T>
@@ -262,11 +240,11 @@ constexpr OrderedLazySeq<T> OrderedLazySeq<T>::skipWhile(const Func &pred) const
 template<class T>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenClasses(const equivClasses<T> &classes, wide_size_t count) {
   return classes.mapByNode([count](auto node) {
-    if (count < node->first.size()) {
-      node->first.resize(count);
+    if (count < node->first.count()) {
+      node->first = node->first.take(count);
       node->second = equivClasses<T>();
     } else {
-      node->second = getTakenClasses(node->second, count - node->first.size());
+      node->second = getTakenClasses(node->second, count - node->first.count());
     }
     return node;
   });
@@ -277,15 +255,9 @@ template<class Func, class>
 constexpr equivClasses<T> OrderedLazySeq<T>::getTakenWhileClasses(const equivClasses<T> &classes,
                                                                   const Func &pred) {
   return classes.mapByNode([pred = pred](auto node) {
-    wide_size_t count = 0;
-    for (; count < node->first.size() && pred(node->first[count]); ++count);
-    if (count < node->first.size()) {
-      node->first.resize(count);
-      node->second = equivClasses<T>();
-    } else {
-      node->second = getTakenWhileClasses(node->second, pred);
-    }
-    return node;
+    auto trues = node->first.takeWhile(pred).count();
+    return node->first.count() == trues ? (node->second = getTakenWhileClasses(node->second, pred), *node)
+                                        : std::pair{node->first.take(trues), equivClasses<T>()};
   });
 }
 
@@ -294,15 +266,10 @@ template<class Func, class>
 constexpr equivClasses<T> OrderedLazySeq<T>::getSkippedWhileClasses(const equivClasses<T> &classes,
                                                                     const Func &pred) {
   return classes.mapByNode([pred = pred](auto node) {
-    decltype(node->first.begin()) found;
-    while (node) {
-      auto &vec = node->first;
-      if (!vec.empty() && (found = std::find_if_not(vec.begin(), vec.end(), pred)) != vec.end()) { break; }
-      node = node->second.eval();
-    }
-    if (node && found != node->first.begin()) {
-      std::move(found, node->first.end(), node->first.begin());
-      node->first.resize(node->first.end() - found);
+    node_ptr<T> found;
+    for (; node && !(found = node->first.skipWhile(pred).eval()); node = node->second.eval());
+    if (node) {
+      node->first = LazySeq(found);
     }
     return node;
   });
@@ -317,3 +284,19 @@ template<class T>
 constexpr std::pair<wide_size_t, equivClasses<T>> OrderedLazySeq<T>::applyPartialSkipHelper(wide_size_t count) const {
   return hasSpecialPartialSkipHelper() ? partialSkipHelper_(count) : std::pair{count, classes_};
 }
+
+template<class T>
+equivClasses<T> OrderedLazySeq<T>::getClasses(const SliceHolderSeq<T> &holders) {
+  return holders.map([](const auto &holder) { return LazySeq(holder.begin, holder.end, holder.controller->data); });
+}
+
+template<class T>
+SliceHolder<T> OrderedLazySeq<T>::getHolder(const equivClass<T> &class_) {
+  return SliceHolder<T>(class_.toVector());
+}
+
+template<class T>
+SliceHolderSeq<T> OrderedLazySeq<T>::getHolders(const equivClasses<T> &seq) {
+  return seq.map(getHolder);
+}
+

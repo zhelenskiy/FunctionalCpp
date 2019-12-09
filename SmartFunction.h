@@ -46,13 +46,13 @@ class SmartFunction {
     return if_func ? static_cast<bool>(*if_func) : true;
   }
 
-  template<class... Args>
-  auto operator()(Args &&... args) const {
-    return std::visit([&](const auto &f) {
+  template<class... Args, class R = decltype(StdFunctionType()(std::declval<Args>()...))>
+  R operator()(Args &&... args) const {
+    return std::visit([=](const auto &f) {
       if constexpr (std::is_same_v<std::decay_t<decltype(f)>, StdFunctionType>) {
-        return f(std::forward<Args>(args)...);
+        return f(std::move(args)...);
       } else {
-        return (*f)(std::forward<Args>(args)...);
+        return (*f)(std::move(args)...);
       }
     }, func_);
   }

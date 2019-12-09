@@ -11,9 +11,16 @@
 #include <optional>
 #include <atomic>
 
-struct controller_t {
+template<class T>
+struct lock_controller {
+  std::shared_ptr<std::vector<T>> data;
   std::atomic_bool isReady = false;
   std::mutex mutex = std::mutex();
+
+  lock_controller() = default;
+  ~lock_controller() = default;
+  lock_controller(lock_controller &&) = delete;
+  lock_controller(const lock_controller &) = delete;
 };
 /*std::vector<int> vec; auto ptr = std::make_shared<decltype(vec)>(vec); VectorHolder<int> seq{ptr, vec.begin(), vec.end()};*/
 
@@ -22,18 +29,43 @@ struct VectorHolder {
   using iterator = typename std::vector<T>::iterator;
   using const_iterator = typename std::vector<T>::const_iterator;
 
-  std::shared_ptr<std::vector<T>> data;
   iterator begin, end;
-  std::shared_ptr<controller_t> controller = std::make_shared<controller_t>();
+  std::shared_ptr<lock_controller<T>> controller = std::make_shared<lock_controller<T>>();
 
-  explicit VectorHolder(std::vector<T> &&vector)
-      : data(std::make_shared<std::vector<T>>(std::move(vector))), begin(data->begin()), end(data->end()) {}
+  VectorHolder(iterator begin, iterator end, decltype(controller) controller)
+      : begin(std::move(begin)), end(std::move(end)), controller(std::move(controller)) {
+//    if(!this->controller)
+//      throw std::exception();
+  }
+
+  VectorHolder(iterator begin, iterator end, std::shared_ptr<std::vector<T>> data)
+      : begin(std::move(begin)), end(std::move(end)) {
+    controller->data = std::move(data);
+//    if(!controller)
+//      throw std::exception();
+  }
+
+  explicit VectorHolder(std::vector<T> &&vector) {
+    controller->data = std::make_shared<std::vector<T>>(std::move(vector));
+    begin = controller->data->begin();
+    end = controller->data->end();
+//    if(!controller)
+//      throw std::exception();
+  }
 
   std::unique_lock<std::mutex> getGuard() {
     if (!controller->isReady.load())
       if (auto guard = std::unique_lock<std::mutex>(controller->mutex); !controller->isReady.load())
         return guard;
     return {};
+  }
+
+  void setReady() {
+    controller->isReady = true;
+  }
+
+  size_t size() const {
+    return end - begin;
   }
 };
 

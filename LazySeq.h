@@ -23,6 +23,7 @@
 #include <unordered_set>
 
 #include "SmartFunction.h"
+#include "VectorHolder.h"
 
 template<class T>
 class LazySeq;
@@ -43,7 +44,7 @@ template<class T>
 using fabric = SmartFunction<node_ptr<T>()>;
 
 template<class T>
-using equivClass = std::vector<T>;
+using equivClass = LazySeq<T>;
 template<class T>
 using equivClasses = LazySeq<equivClass<T>>;
 using wide_size_t = unsigned long long;
@@ -142,12 +143,6 @@ class LazySeq {
   [[nodiscard]] constexpr LazySeq<T> setSkipHelper(const skip_helper_t &specialSkip) const;
 
   virtual ~LazySeq() = default;
-
-  [[nodiscard]] size_t copySize() const;
-
-  template<class... Args>
-  LazySeq<T> setCopyArgs(const Args &... args) const;
-  LazySeq<T> setCopySize(size_t size) const;
 
   template<class Container>
   [[nodiscard]] auto toContainer() const;
@@ -564,26 +559,13 @@ class LazySeq {
  private:
   fabric<T> evaluator_;
   skip_helper_t skipHelper_ = nullptr;
-  size_t copySize_ = 1;
 
   [[nodiscard]] constexpr OrderedLazySeq<T> makeOrdered() const;
-
-  [[nodiscard]] size_t copySizeOf() const;
-
-  template<class Arg, class... Args>
-  [[nodiscard]] size_t copySizeOf(const Arg &arg, const Args &... args) const;
-
-  template<class Arg, class... Args>
-  size_t copySizeOf(const LazySeq<Arg> &arg, const Args &... args) const;
-
-  template<class Arg, class... Args>
-  size_t copySizeOf(const std::shared_ptr<Arg> &arg, const Args &... args) const;
 
   static node_ptr<T> broadcastSkipHelper(node_ptr<T> &&evaluated,
                                          skip_helper_t skipper,
                                          wide_size_t i = 0);
 
-  static void wrapInHeap(LazySeq<T> &seq);
 };
 
 namespace std {

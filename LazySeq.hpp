@@ -72,7 +72,7 @@ constexpr LazySeq<T> LazySeq<T>::filter(const Func &pred) const {
       pair->second = pair->second.filter(pred);
     }
     return pair;
-  }).setCopyArgs(pred);
+  });
 }
 
 template<class T>
@@ -97,7 +97,7 @@ constexpr LazySeq<R> LazySeq<T>::map(const Func &func) const {
         auto[notSkippedYet, rest] = applySkipHelper(count);
         return std::pair{notSkippedYet, rest.map(func)};
       }
-      : typename LazySeq<R>::skip_helper_t()).setCopyArgs(func);
+      : typename LazySeq<R>::skip_helper_t());
 }
 
 template<class T>
@@ -113,7 +113,7 @@ constexpr LazySeq<T>::LazySeq(Iter first, Iter last, Args... captured)
                ? range(first, (wide_size_t) std::distance(first, last))
                : infiniteRange(first).takeWhile([last, captured...](Iter iter) { return iter != last; }))
                   .map([captured...](Iter iter) { return *iter; })
-                  .setCopyArgs(first, last, captured..., captured...)) {}
+) {}
 
 template<class T>
 template<class Func, class>
@@ -168,14 +168,13 @@ constexpr LazySeq<T> LazySeq<T>::concat(const LazySeq<T> &other) const {
     node_ptr<T> pair = eval();
     return pair.has_value() ? (pair->second = pair->second.concat(other), pair) : other.eval();
   }).setSkipHelper(
-          hasSpecialSkipHelper() || other.hasSpecialSkipHelper()
-          ? [*this, other](wide_size_t count) {
-            auto[thisToBeSkipped, thisRest] = applySkipHelper(count);
-            return thisToBeSkipped ? other.applySkipHelper(thisToBeSkipped) : std::pair{thisToBeSkipped,
-                                                                                        thisRest + other};
-          }
-          : skip_helper_t())
-      .setCopyArgs(*this, other, *this, other);
+      hasSpecialSkipHelper() || other.hasSpecialSkipHelper()
+      ? [*this, other](wide_size_t count) {
+        auto[thisToBeSkipped, thisRest] = applySkipHelper(count);
+        return thisToBeSkipped ? other.applySkipHelper(thisToBeSkipped) : std::pair{thisToBeSkipped,
+                                                                                    thisRest + other};
+      }
+      : skip_helper_t());
 }
 
 template<class T>
@@ -202,7 +201,7 @@ constexpr LazySeq<T> join(const LazySeq<LazySeq<T>> &seq) {
       count = toBeSkipped;
     }
     return std::pair{count, LazySeq<T>()};
-  }).setCopyArgs(seq, seq);
+  });
 }
 
 template<class Container>
@@ -329,7 +328,7 @@ constexpr LazySeq<R> LazySeq<T>::mapByNode(const Func &f) const {
   return LazySeq<R>([*this, f = f]() -> node_ptr<R> {
     node_ptr<T> old = eval();
     return old.has_value() ? f(std::move(old)) : node_ptr<R>();
-  }).setCopyArgs(*this, f);
+  });
 }
 
 template<class T>
@@ -364,8 +363,7 @@ constexpr LazySeq<T> LazySeq<T>::repeat(wide_size_t count) const {
         const auto resFullCount = fullCount - skipCount;
         return std::pair{(wide_size_t) 0, (skipCount % bucketCount != 0 ? skip(skipCount % bucketCount) : LazySeq<T>())
             + repeat(resFullCount / bucketCount)};
-      })
-      .setCopyArgs(count, *this);
+      });
   /*.broadcastSkipHelper()*/;
 }
 
@@ -381,7 +379,7 @@ constexpr LazySeq<std::pair<T, R>> LazySeq<T>::operator*(const LazySeq<R> &other
     return other.map(
         [first](const R &second) -> std::pair<T, R> { return {first, second}; }
     );
-  }).setCopyArgs(other);
+  });
 }
 
 template<class T>
@@ -441,16 +439,15 @@ constexpr LazySeq<T> LazySeq<T>::take(wide_size_t count) const {
     return count ? std::make_optional<node<T>>(pair->first, pair->second.take(count - 1))
                  : node_ptr<T>();
   }).setSkipHelper(
-          hasSpecialSkipHelper()
-          ? [count, *this](wide_size_t countToSkip) {
-            if (countToSkip >= count) {
-              return std::pair{countToSkip - count, LazySeq<T>()};
-            }
-            auto[notSkipped, rest] = applySkipHelper(countToSkip); //notSkipped <= countToSkip < count
-            return std::pair{notSkipped, rest.take(count - countToSkip)};
-          }
-          : skip_helper_t())
-      .setCopyArgs(count, count, *this);
+      hasSpecialSkipHelper()
+      ? [count, *this](wide_size_t countToSkip) {
+        if (countToSkip >= count) {
+          return std::pair{countToSkip - count, LazySeq<T>()};
+        }
+        auto[notSkipped, rest] = applySkipHelper(countToSkip); //notSkipped <= countToSkip < count
+        return std::pair{notSkipped, rest.take(count - countToSkip)};
+      }
+      : skip_helper_t());
   //Implementation is not via 'takeWhileByIndex' because 'range'-implementation is via 'take'
 }
 
@@ -460,7 +457,7 @@ constexpr LazySeq<T> LazySeq<T>::takeWhile(const Func &pred) const {
   return mapByNode([pred = pred](node_ptr<T> &&pair) -> node_ptr<T> {
     return pred(pair->first) ? std::make_optional<node<T>>(pair->first, pair->second.takeWhile(pred))
                              : node_ptr<T>();
-  }).setCopyArgs(pred);
+  });
 }
 
 template<class T>
@@ -482,8 +479,7 @@ constexpr LazySeq<T> LazySeq<T>::skip(wide_size_t count) const {
           ? [count, *this](auto newCount) {
             return applySkipHelper(count < WIDE_SIZE_T_MAX - newCount ? count + newCount : WIDE_SIZE_T_MAX);
           }
-          : skip_helper_t())
-      .setCopyArgs(*this, count, *this, count);
+          : skip_helper_t());
 }
 
 template<class T>
@@ -492,7 +488,7 @@ constexpr LazySeq<T> LazySeq<T>::skipWhile(const Func &pred) const {
   return mapByNode([pred = pred](node_ptr<T> &&pair) -> node_ptr<T> {
     for (; pair.has_value() && pred(pair->first); pair = pair->second.eval());
     return pair;
-  }).setCopyArgs(pred);
+  });
 }
 
 template<class T>
@@ -763,7 +759,7 @@ constexpr LazySeq<T> LazySeq<T>::butLast() const {
                         : std::pair{toBeSkipped < WIDE_SIZE_T_MAX ? toBeSkipped + 1 : WIDE_SIZE_T_MAX, LazySeq<T>()};
           }
           : skip_helper_t())
-      .setCopyArgs(*this, *this)
+
     /*.broadcastSkipHelper()*/;
 }
 
@@ -776,15 +772,14 @@ constexpr LazySeq<std::pair<T, R>> LazySeq<T>::match(const LazySeq<R> &other) co
                                                                  pair->second.match(otherPair->second))
                      : node_ptr<std::pair<T, R>>();
   }).setSkipHelper(
-          hasSpecialSkipHelper() || other.hasSpecialSkipHelper()
-          ? [*this, other](wide_size_t count) {
-            auto[thisToBeSkipped, thisRest] = hasSpecialSkipHelper() ? applySkipHelper(count) : std::pair{count, *this};
-            auto[otherToBeSkipped, otherRest] = other.hasSpecialSkipHelper() ? other.applySkipHelper(count)
-                                                                             : std::pair{count, other};
-            return std::pair{std::max(thisToBeSkipped, otherToBeSkipped), thisRest.match(otherRest)};
-          }
-          : typename LazySeq<std::pair<T, R>>::skip_helper_t())
-      .setCopyArgs(other, *this, other);
+      hasSpecialSkipHelper() || other.hasSpecialSkipHelper()
+      ? [*this, other](wide_size_t count) {
+        auto[thisToBeSkipped, thisRest] = hasSpecialSkipHelper() ? applySkipHelper(count) : std::pair{count, *this};
+        auto[otherToBeSkipped, otherRest] = other.hasSpecialSkipHelper() ? other.applySkipHelper(count)
+                                                                         : std::pair{count, other};
+        return std::pair{std::max(thisToBeSkipped, otherToBeSkipped), thisRest.match(otherRest)};
+      }
+      : typename LazySeq<std::pair<T, R>>::skip_helper_t());
 }
 
 template<class T>
@@ -1114,7 +1109,7 @@ constexpr LazySeq<T> LazySeq<T>::emplaceFront(const T &value) const {
       ? [*this, value](wide_size_t count) {
         return count ? applySkipHelper(count - 1) : std::pair{(wide_size_t) 0, emplaceFront(value)};
       }
-      : skip_helper_t()).setCopyArgs(*this, value);
+      : skip_helper_t());
 }
 
 template<class T>
@@ -1166,7 +1161,7 @@ constexpr LazySeq<T> LazySeq<T>::distinct() const {
       }
     }
     return makeLazy(std::move(vector));
-  }).setCopyArgs(*this);
+  });
 }
 
 template<class T>
@@ -1174,7 +1169,7 @@ constexpr LazySeq<T> LazySeq<T>::intersect(const LazySeq<T> &other) const {
   return LazySeq<T>([*this, other] {
     const auto set_ptr = std::make_shared<std::unordered_set<T>>(std::move(other.toUnorderedSet()));
     return filter([set_ptr](const T &a) -> bool { return static_cast<bool>(set_ptr->count(a)); });
-  }).setCopyArgs(*this, other);
+  });
 }
 //TODO copy-paste
 template<class T>
@@ -1182,7 +1177,7 @@ constexpr LazySeq<T> LazySeq<T>::except(const LazySeq<T> &other) const {
   return LazySeq<T>([*this, other] {
     const auto set_ptr = std::make_shared<std::unordered_set<T>>(std::move(other.toUnorderedSet()));
     return filter([set_ptr](const T &a) -> bool { return !set_ptr->count(a); });
-  }).setCopyArgs(*this, other);
+  });
 }
 
 template<class T>
@@ -1217,7 +1212,7 @@ LazySeq<LazySeq<T>> LazySeq<T>::groupBy(wide_size_t portion) const {
                                                   ? skipCount * portion
                                                   : WIDE_SIZE_T_MAX);
         return std::pair{toBeSkipped / portion, rest.groupBy(portion)};
-      }).setCopyArgs(*this, portion, *this, portion);
+      });
 }
 
 template<class T>
@@ -1332,8 +1327,8 @@ constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByIndexBy(const std::fun
 
 template<class T>
 constexpr OrderedLazySeq<T> LazySeq<T>::makeOrdered() const {
-  return OrderedLazySeq<T>(equivClasses<T>([*this] { return equivClasses<T>{toVector()}; }),
-                           [*this](size_t count) { return std::pair{count, equivClasses<T>{toVector()}}; });
+  return OrderedLazySeq<T>(equivClasses<T>([*this] { return equivClasses<T>{makeLazy(toVector())}; }),
+                           [*this](size_t count) { return std::pair{count, equivClasses<T>{makeLazy(toVector())}}; });
 }
 
 /*template<class T>
@@ -1540,7 +1535,7 @@ template<class Func, class>
 constexpr LazySeq<T>::LazySeq(const Func &generator)
     : LazySeq(LazySeq([generator = generator] { return generator().eval(); })
                   .setSkipHelper([generator](wide_size_t count) { return generator().applySkipHelper(count); })
-                  .setCopyArgs(generator, generator)
+
     /*.broadcastSkipHelper()*/) {}
 
 template<class T>
@@ -1574,79 +1569,13 @@ auto LazySeq<T>::applySkipHelper(wide_size_t count) const {
 }
 
 template<class T>
-size_t LazySeq<T>::copySize() const {
-  return copySize_;
-}
-
-template<class T>
-size_t LazySeq<T>::copySizeOf() const {
-  return 0;
-}
-
-template<class T>
-template<class Arg, class... Args>
-size_t LazySeq<T>::copySizeOf(const Arg &arg, const Args &... args) const {
-  using Decayed = std::decay_t<Arg>;
-  return std::min(max_copy_size,
-                  (std::is_trivially_copyable_v<Decayed> ? sizeof(Decayed) : max_copy_size) + copySizeOf(args...));
-}
-
-template<class T>
-template<class Arg, class... Args>
-size_t LazySeq<T>::copySizeOf(const LazySeq<Arg> &arg, const Args &... args) const {
-  return std::min(max_copy_size, sizeof arg + arg.copySize() + copySizeOf(args...));
-}
-
-template<class T>
-template<class Arg, class... Args>
-size_t LazySeq<T>::copySizeOf(const std::shared_ptr<Arg> &arg, const Args &... args) const {
-  return std::min(max_copy_size, sizeof arg + copySizeOf(args...));
-}
-
-template<class T>
-template<class... Args>
-LazySeq<T> LazySeq<T>::setCopyArgs(const Args &... args) const {
-  auto seq = LazySeq(*this);
-  /*if (copySizeOf(args...) < max_copy_size) {
-    seq.copySize_ = copySizeOf(args...);
-  } else {
-    wrapInHeap(seq);
-  }*/
-  return seq;
-}
-template<class T>
-LazySeq<T> LazySeq<T>::setCopySize(size_t size) const {
-  auto seq = *this;
-  /*seq.copySize_ = std::min(size, max_copy_size);
-  if (seq.copySize_ == size) {
-    wrapInHeap(seq);
-  }*/
-  return seq;
-}
-
-template<class T>
-void LazySeq<T>::wrapInHeap(LazySeq<T> &seq) {
-  seq.evaluator_ =
-      [eval = std::make_shared<fabric<T>>(seq.evaluator_)](const auto &... args) { return (*eval)(args...); };
-  seq.copySize_ = sizeof(std::shared_ptr<fabric<T>>);
-  if (seq.hasSpecialSkipHelper()) {
-    seq.skipHelper_ =
-        [eval = std::make_shared<skip_helper_t>(seq.skipHelper_)](const auto &... args) { return (*eval)(args...); };
-    seq.copySize_ *= 2;
-  }
-}
-
-template<class T>
 node_ptr<T> LazySeq<T>::broadcastSkipHelper(node_ptr<T> &&evaluated, LazySeq::skip_helper_t skipper, wide_size_t i) {
   if (skipper && evaluated.has_value() && !evaluated->second.hasSpecialSkipHelper())
     evaluated->second = LazySeq<T>(
         [i, skipper = skipper, next_ = evaluated->second] {
-          return broadcastSkipHelper(next_.evaluator_(),
-                                     skipper,
-                                     i + 1);
+          return broadcastSkipHelper(next_.evaluator_(), skipper, i + 1);
         },
-        [i, skipper = skipper](wide_size_t count) { return skipper(i + count); })
-        .setCopyArgs(i, skipper, evaluated->second, i, skipper);
+        [i, skipper = skipper](wide_size_t count) { return skipper(i + count); });
   return evaluated;
 }
 
@@ -1662,7 +1591,7 @@ constexpr LazySeq<T> infiniteRange(const T &start) {
              .setSkipHelper(
                  [start](wide_size_t count) {
                    return std::pair{(wide_size_t) 0, infiniteRange(adder<T>::invoke(start, count))};
-                 }).setCopyArgs(start, start)
+                 })
          : LazySeq<T>(start, increment<T>);
 }
 
@@ -1733,7 +1662,7 @@ LazySeq<integer_t> integerNumbers() {
       .setSkipHelper([mapper](wide_size_t count) {
         return std::pair{(wide_size_t) 0, mapper(naturalNumbers().skip(count / 2)).skip(count % 2)};
       })
-      .setCopyArgs(mapper)
+
           /*.broadcastSkipHelper()*/
       .emplaceFront(0);
 }
@@ -1758,7 +1687,7 @@ LazySeq<rational_t> positiveRationalNumbers() {
             return std::pair{(wide_size_t) 0,
                              LazySeq<rational_t>(rational_t{fusc(count + 1), fusc(count + 2)}, nextGenerator)};
           })
-      .setCopyArgs(nextGenerator)
+
     /*.broadcastSkipHelper()*/;
 }
 
@@ -1770,7 +1699,7 @@ LazySeq<rational_t> rationalNumbers() {
       .setSkipHelper([mapper](wide_size_t count) {
         return std::pair{(wide_size_t) 0, mapper(positiveRationalNumbers().skip(count / 2)).skip(count % 2)};
       })
-      .setCopyArgs(mapper)
+
           /*.broadcastSkipHelper()*/
       .emplaceFront(rational_t{0, 1});
 }
@@ -1877,7 +1806,7 @@ constexpr LazySeq<T> fibonacciSeq() {
                         return std::pair{(wide_size_t) 0, seq(std::pair<T, T>{fibonacci(index), fibonacci(index + 1)})};
                       }
                   )
-                  .setCopyArgs(seq)
+
       /*.broadcastSkipHelper()*/);
 }
 
