@@ -1323,15 +1323,9 @@ template<class T>
 template<class R>
 constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByIndexBy(const std::function<R(indexed_t<T>)> &func) const {
   return orderByIndexBy(func, std::less<R>());
-}*/
-
-template<class T>
-constexpr OrderedLazySeq<T> LazySeq<T>::makeOrdered() const {
-  return OrderedLazySeq<T>(equivClasses<T>([*this] { return equivClasses<T>{makeLazy(toVector())}; }),
-                           [*this](size_t count) { return std::pair{count, equivClasses<T>{makeLazy(toVector())}}; });
 }
 
-/*template<class T>
+template<class T>
 template<class R, class Func, class>
 constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const std::function<R(T)> &func,
                                                           const Func &comp) const {
@@ -1580,6 +1574,85 @@ node_ptr<T> LazySeq<T>::broadcastSkipHelper(node_ptr<T> &&evaluated, LazySeq::sk
 }
 
 template<class T>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByItself() const {
+  return orderByItselfWith(std::less<T>());
+}
+
+template<class T>
+template<class Comparer, class Mapper, class R, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const Mapper &func, const Comparer &comp) const {
+  return orderByItselfWith([comp = comp, func = func](const T &a, const T &b) { return comp(func(a), func(b)); });
+}
+
+template<class T>
+template<class Mapper, class R>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const Mapper &func) const {
+  return orderBy(func, std::less<R>());
+}
+
+template<class T>
+template<class Comparer, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescendingByItselfWith(const Comparer &comp) const {
+  return orderByItselfWith(descendingComparer(comp));
+}
+
+template<class T>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescendingByItself() const {
+  return orderByDescendingByItselfWith(std::less<T>());
+}
+
+template<class T>
+template<class Comparer, class Mapper, class R, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescendingBy(const Mapper &func, const Comparer &comp) const {
+  return orderBy(func, descendingComparer(comp));
+}
+
+template<class T>
+template<class Mapper, class R>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescendingBy(const Mapper &func) const {
+  return orderByDescendingBy(func, std::less<R>());
+}
+
+template<class T>
+template<class Comparer, class>
+constexpr OrderedLazySeq<T> LazySeq<T>::orderByItselfWith(const Comparer &comp) const {
+  return {SliceHolder<T>(toVector(), [comp = comp](const auto &cont) { separateMore(cont, comp); }).toLazySeq(), comp};
+}
+
+template<class T>
+template<class Func, class>
+auto LazySeq<T>::partition(typename std::vector<T>::iterator begin,
+                           typename std::vector<T>::iterator end, const Func &comp) {
+  auto pivot = *(begin + getRandomIndex((size_t) (end - begin)));
+  auto border1 = std::partition(begin, end, [comp = comp, pivot](const auto &item) { return comp(item, pivot); });
+  auto border2 = std::find_if_not(border1, end, isEqualTo(std::move(pivot)));
+  return std::tuple{std::pair{begin, border1}, std::pair{border1, border2}, std::pair{border2, end}};
+}
+
+template<class T>
+//template<bool stable>
+template<class Func, class>
+void LazySeq<T>::separateMore(const DataController<T> &dataController, const Func &comp) {
+  if (const auto &lock = dataController.getGuard()) {
+    auto[begin, end] = dataController.iterators();
+    if (dataController.size() <= BUCKET_SIZE_FOR_STD_SORT_CALL) {
+      if (dataController.size() > 1) {
+        std::stable_sort(begin, end, comp);
+      }
+      dataController.setReady();
+    } else {
+      auto[less, equal, greater] = partition(begin, end, comp);
+      auto data = dataController.data();
+      auto lazySeparator = [comp](const auto &controller) { separateMore(controller, comp); };
+      dataController.setSubHolders(lock,
+                                   SliceHolder<T>(data, less.first, less.second, lazySeparator),
+                                   SliceHolder<T>(data, equal.first, equal.second),
+                                   SliceHolder<T>(data, greater.first, greater.second, lazySeparator));
+    }
+  }
+}
+
+template<class T>
 constexpr LazySeq<T> range(const T &start, wide_size_t count) {
   return infiniteRange(start).take(count);
 }
@@ -1699,7 +1772,6 @@ LazySeq<rational_t> rationalNumbers() {
       .setSkipHelper([mapper](wide_size_t count) {
         return std::pair{(wide_size_t) 0, mapper(positiveRationalNumbers().skip(count / 2)).skip(count % 2)};
       })
-
           /*.broadcastSkipHelper()*/
       .emplaceFront(rational_t{0, 1});
 }

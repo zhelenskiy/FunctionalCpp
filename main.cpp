@@ -8,7 +8,7 @@
 #define ll long long
 
 int main() {
-  testRecursion();
+  /*testRecursion();
   testSizesOfLazySeqs();
   std::vector<int> vec = {1, 2, 3, 4, 5, 6, 10};
   auto lazy = testMakeLazy<int>(vec);
@@ -47,8 +47,9 @@ int main() {
   testEmplace();
   testDistinctUnionExceptIntersect();
   testGroupBy();
-
+*/
   testOrder();
+  /*
   testIndexed();
   testComparisons();
 
@@ -60,7 +61,7 @@ int main() {
   testSimpleFunctions();
   testRandom();
   testSmartSkips();
-
+*/
   return 0;
 }
 
@@ -110,7 +111,7 @@ void traceCollection(const Container<K, V> &container) {
   std::cout << std::endl;
 }
 }
-
+/*
 void testSmartSkips() {
   trace("testSmartSkips");
   trace(identitySeq(3).skip(1000000000000ull).take(15));
@@ -362,10 +363,6 @@ void testFunctionsByIndex() {
       [](const LazySeq<indexed_t<double>> &seq) { return seq.sum(fn1(it.second)); }
   ));
   trace();
-  trace(seq.orderByIndexBy(multiplicationCriterion));
-  trace();
-  trace(seq.orderByDescendingByIndexBy(multiplicationCriterion));
-  trace();
 }
 
 void testForeach() {
@@ -453,10 +450,10 @@ void testComparisons() {
     trace();
   }
 }
-
+*/
 void testOrder() {
   trace("testOrder");
-  trace(range(1, 20).orderByDescending());
+  trace(range(1, 2000).orderByDescendingByItself());
   auto range1 = range(1, 12);
   auto orderedTrace = [](const auto &orderedSeq) {
     trace(orderedSeq);
@@ -465,10 +462,10 @@ void testOrder() {
     trace(commonSeq);
     trace();
   };
-  for (const auto &seq: {range1.orderBy(),
-                         range1.orderByDescending(),
-                         range1.orderBy(std::greater<>()),
-                         range1.orderByDescending(std::greater<>())}) {
+  for (const auto &seq: {range1.orderByItself(),
+                         range1.orderByDescendingByItself(),
+                         range1.orderByItselfWith(std::greater<>()),
+                         range1.orderByDescendingByItselfWith(std::greater<>())}) {
     orderedTrace(seq);
   }
   trace();
@@ -476,13 +473,13 @@ void testOrder() {
   const auto range3 = (range2 * 4).match(range1);
   auto seq1 = range3.orderBy(fn1(it.first));
   trace<int, int>(seq1);
-  auto seq2 = range3.orderByDescending(fn1(it.first));
+  auto seq2 = range3.orderByDescendingBy(fn1(it.first));
   trace<int, int>(seq2);
   trace();
   for (const auto &seq: {seq1.thenBy(fn1(it.second)),
-                         seq1.thenByDescending(fn1(it.second)),
+                         seq1.thenByDescendingBy(fn1(it.second)),
                          seq1.thenBy(fn1(it.second), std::greater<>()),
-                         seq1.thenByDescending(fn1(it.second), std::greater<>())}) {
+                         seq1.thenByDescendingBy(fn1(it.second), std::greater<>())}) {
     trace<int, int>(seq);
     LazySeq<std::pair<int, int>> common = seq;
     trace(common);
@@ -490,13 +487,13 @@ void testOrder() {
   }
 
   auto seq3 = range(1, 12).orderBy(fn1(std::to_string(it)[0]));
-  for (const auto &seq: {seq3, seq3.thenBy(), seq3.thenByDescending()}) {
+  for (const auto &seq: {seq3, seq3.thenByItself(), seq3.thenByDescendingByItself()}) {
     orderedTrace(seq);
     orderedTrace(seq.map([](int x) {
       auto str = std::to_string(x);
       std::reverse(str.begin(), str.end());
       return str;
-    }).thenBy());
+    }));
     trace();
   }
   auto seq4 = (square(range2) * range2).map(fn1(std::to_string(it.first.first)
@@ -504,48 +501,48 @@ void testOrder() {
                                                     + std::to_string(it.second)));
   auto charGetter = [](size_t i) { return fn1(it[i]); };
   trace(seq4);
-  trace(seq4.orderByDescending(charGetter(0)).thenBy(charGetter(1)));
+  trace(seq4.orderByDescendingBy(charGetter(0)).thenBy(charGetter(1)));
   trace(seq4.orderBy(charGetter(0))
-            .thenByDescending(charGetter(1))
-            .thenByDescending(charGetter(2)));
-  trace(range(1, 2000).orderByDescending());
+            .thenByDescendingBy(charGetter(1))
+            .thenByDescendingBy(charGetter(2)));
+  trace(range(1, 2000).orderByDescendingByItself());
   trace();
-  trace(range(1, 100000).orderByDescending().skip(99690));
+  trace(range(1, 100000).orderByDescendingByItself().skip(99690));
   trace();
-  trace(static_cast<LazySeq<int>>(range(1, 100000).orderByDescending()).skip(99690));
+  trace(static_cast<LazySeq<int>>(range(1, 100000).orderByDescendingByItself()).skip(99690));
   trace();
-  trace(range(1, 100000).orderByDescending().skip(49000).skip(50690));
+  trace(range(1, 100000).orderByDescendingByItself().skip(49000).skip(50690));
   trace();
-  trace(range(1, 100000).orderByDescending().map(partial(std::multiplies<>(), 2)).skip(99690));
+  trace(range(1, 100000).orderByDescendingByItself().map(partial(std::multiplies<>(), 2)).skip(99690));
   trace();
-  trace(seq4.orderByDescending(charGetter(0)).skip(3));
-  trace(seq4.orderByDescending(charGetter(0)).skip(3).thenBy());
-  trace(seq4.orderByDescending(charGetter(0)).skip(3).thenByDescending());
-  trace(seq4.orderByDescending(charGetter(0)).thenBy().skip(3));
-  trace(seq4.orderByDescending(charGetter(0)).thenByDescending().skip(3));
-  trace(seq4.orderBy().filter(fn1(it[0] != '1')).skip(1));
-  trace(seq4.orderBy().take(5));
-  trace(seq4.orderBy().take(5).skip(1));
-  trace(seq4.orderBy().skip(1).take(5));
+  trace(seq4.orderByDescendingBy(charGetter(0)).skip(3));
+  trace(seq4.orderByDescendingBy(charGetter(0)).skip(3).thenByItself());
+  trace(seq4.orderByDescendingBy(charGetter(0)).skip(3).thenByDescendingByItself());
+  trace(seq4.orderByDescendingBy(charGetter(0)).thenByItself().skip(3));
+  trace(seq4.orderByDescendingBy(charGetter(0)).thenByDescendingByItself().skip(3));
+  trace(seq4.orderByItself().filter(fn1(it[0] != '1')).skip(1));
+  trace(seq4.orderByItself().take(5));
+  trace(seq4.orderByItself().take(5).skip(1));
+  trace(seq4.orderByItself().skip(1).take(5));
   auto seq5 = seq4.orderBy(charGetter(0)).thenBy(charGetter(1));
   trace(seq5);
-  trace(seq5.take(5).thenByDescending());
-  trace(seq5.thenByDescending().take(5));
-  for (const auto &seq: {range(0, 5).orderBy().take(0), range(0, 5).orderBy().take(100),
-                         range(0, 5).orderBy().skip(0), range(0, 5).orderBy().skip(100),
-                         range(0, 5).orderBy().takeWhile(constantly(true)),
-                         range(0, 5).orderBy().takeWhile(constantly(false)),
-                         range(0, 5).orderBy().skipWhile(constantly(true)),
-                         range(0, 5).orderBy().skipWhile(constantly(false)),
-                         range(0, 5).orderBy().takeWhile(isLessThan(3)),
-                         range(0, 5).orderBy().skipWhile(isLessThan(3)),
-                         range(0, 5).orderBy().rest()}) {
+  trace(seq5.take(5).thenByDescendingByItself());
+  trace(seq5.thenByDescendingByItself().take(5));
+  for (const auto &seq: {range(0, 5).orderByItself().take(0), range(0, 5).orderByItself().take(100),
+                         range(0, 5).orderByItself().skip(0), range(0, 5).orderByItself().skip(100),
+                         range(0, 5).orderByItself().takeWhile(constantly(true)),
+                         range(0, 5).orderByItself().takeWhile(constantly(false)),
+                         range(0, 5).orderByItself().skipWhile(constantly(true)),
+                         range(0, 5).orderByItself().skipWhile(constantly(false)),
+                         range(0, 5).orderByItself().takeWhile(isLessThan(3)),
+                         range(0, 5).orderByItself().skipWhile(isLessThan(3)),
+                         range(0, 5).orderByItself().rest()}) {
     trace(seq);
     trace(seq.skip(2));
     trace();
   }
 }
-
+/*
 void testGroupBy() {
   trace("testGroupBy");
   const auto keyFinder = fn1(it % 2);
@@ -934,4 +931,4 @@ void testEmplace() {
   trace("testEmplace");
   trace(range(1, 10).emplaceFront(100));
   trace(range(1, 10).emplaceBack(100));
-}
+}*/

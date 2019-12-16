@@ -23,7 +23,6 @@
 #include <unordered_set>
 
 #include "SmartFunction.h"
-#include "VectorHolder.h"
 
 template<class T>
 class LazySeq;
@@ -43,10 +42,6 @@ using node_ptr = std::optional<node<T>>;
 template<class T>
 using fabric = SmartFunction<node_ptr<T>()>;
 
-template<class T>
-using equivClass = LazySeq<T>;
-template<class T>
-using equivClasses = LazySeq<equivClass<T>>;
 using wide_size_t = unsigned long long;
 #define WIDE_SIZE_T_MAX UINT64_MAX
 using natural_t = unsigned long long;
@@ -54,8 +49,6 @@ using integer_t = signed long long;
 using rational_t = std::pair<integer_t, natural_t>;
 template<class T>
 using indexed_t = std::pair<wide_size_t, T>;
-
-size_t max_copy_size = 128 * sizeof(size_t);
 
 template<class T>
 constexpr T identity(const T &x);
@@ -87,6 +80,7 @@ using when_is_predicate = when_is_function<Func, bool(Args...)>;
 template<class Func, class T>
 using when_is_comparer = when_is_predicate<Func, T, T>;
 
+#include "SliceHolder.h"
 template<class T>
 class LazySeq {
  public:
@@ -505,17 +499,30 @@ class LazySeq {
   LazySeq<std::pair<F, R>> groupByIndexBy(const KeyFinder &keyFinder,
                                           const ValueFunc &valueFunc,
                                           const Mapper &seqFunc) const;
-  /*template<class Comparer, class = when_is_comparer<Comparer, T>>
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy(const Comparer &comp) const;
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderBy() const;
-  template<class Comparer, class = when_is_comparer<Comparer, T>>
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending(const Comparer &comp) const;
-  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescending() const;
-  template<class Comparer, class Mapper, class R = ResType<Mapper, T>, class = when_is_comparer<Comparer, R>>
-  constexpr OrderedLazySeq<T> orderBy(const Mapper &func,
-                                      const Comparer &comp) const;*/
 
-  template<class... Args>
+  template<class Comparer, class = when_is_comparer<Comparer, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByItselfWith(const Comparer &comp) const;
+
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByItself() const;
+
+  template<class Comparer, class Mapper, class R = ResType<Mapper, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> orderBy(const Mapper &func, const Comparer &comp) const;
+
+  template<class Mapper, class R = ResType<Mapper, T>>
+  constexpr OrderedLazySeq<T> orderBy(const Mapper &func) const;
+
+  template<class Comparer, class = when_is_comparer<Comparer, T>>
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescendingByItselfWith(const Comparer &comp) const;
+
+  [[nodiscard]] constexpr OrderedLazySeq<T> orderByDescendingByItself() const;
+
+  template<class Comparer, class Mapper, class R = ResType<Mapper, T>, class = when_is_comparer<Comparer, R>>
+  constexpr OrderedLazySeq<T> orderByDescendingBy(const Mapper &func, const Comparer &comp) const;
+
+  template<class Mapper, class R = ResType<Mapper, T>>
+  constexpr OrderedLazySeq<T> orderByDescendingBy(const Mapper &func) const;
+
+  /*template<class... Args>
   constexpr OrderedLazySeq<T> orderBy(const Args &... args) const {
     return makeOrdered().thenBy(args...);
   }
@@ -533,7 +540,7 @@ class LazySeq {
   template<class... Args>
   constexpr OrderedLazySeq<T> orderByDescendingByIndexBy(const Args &... args) const {
     return getIndexed().orderByDescending(args...).map([](auto &&pair) { return pair.second; });
-  }
+  }*/
 
   /*template<class Mapper, class = ResType<Mapper, T>, class = void>
   constexpr OrderedLazySeq<T> orderBy(const Mapper &func) const;
@@ -557,14 +564,18 @@ class LazySeq {
   [[nodiscard]] auto applySkipHelper(wide_size_t count) const;
 
  private:
+  static const wide_size_t BUCKET_SIZE_FOR_STD_SORT_CALL = 256;
+
   fabric<T> evaluator_;
   skip_helper_t skipHelper_ = nullptr;
 
-  [[nodiscard]] constexpr OrderedLazySeq<T> makeOrdered() const;
+  static node_ptr<T> broadcastSkipHelper(node_ptr<T> &&evaluated, skip_helper_t skipper, wide_size_t i = 0);
 
-  static node_ptr<T> broadcastSkipHelper(node_ptr<T> &&evaluated,
-                                         skip_helper_t skipper,
-                                         wide_size_t i = 0);
+  template<class Func, class = when_is_comparer<Func, T>>
+  static auto partition(typename std::vector<T>::iterator begin,
+                        typename std::vector<T>::iterator end, const Func &comp);
+  template<class Func, class = when_is_comparer<Func, T>>
+  static void separateMore(const DataController<T> &holder, const Func &comp);
 
 };
 
