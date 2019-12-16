@@ -20,7 +20,7 @@ class DataController {
   std::shared_ptr<std::vector<T>> data_;
   iterator begin_, end_;
   mutable std::atomic_bool isReady_ = true;
-  std::function<void(const DataController<T> &)> preAction_ = nullptr;
+  mutable std::function<void(const DataController<T> &)> preAction_ = nullptr;
   mutable std::function<std::pair<iterator, wide_size_t>(const DataController<T> &, wide_size_t)> getter_ =
       [](const DataController<T> &this_, wide_size_t ind) {
         return ind >= this_.size() ? std::pair{this_.end(), 0ull} : std::pair{this_.begin() + ind, this_.size() - ind};
@@ -74,7 +74,10 @@ class DataController {
   }
 
   auto get(wide_size_t count) const {
-    if (preAction_) preAction_(*this);
+    if (preAction_) {
+      preAction_(*this);
+      preAction_ = nullptr;
+    }
     return getter_(*this, count);
   }
 
