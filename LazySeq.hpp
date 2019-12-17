@@ -1654,7 +1654,23 @@ void LazySeq<T>::separateMore(const DataController<T> &dataController, const Fun
 
 template<class T>
 constexpr LazySeq<T> range(const T &start, wide_size_t count) {
-  return infiniteRange(start).take(count);
+  if (count) {
+    auto seq = LazySeq<T>([start, count] {
+      T copy(start);
+      return std::make_optional(std::pair{start, range(++copy, count - 1)});
+    });
+    if constexpr (adder<T>::hasPlus) {
+      return seq.setSkipHelper([start, count](wide_size_t new_count) {
+        return new_count >= count ? std::pair{new_count - count, LazySeq<T>()}
+                                  : std::pair{0ull, range(adder<T>::invoke(start, new_count), count - new_count)};
+      });
+    }
+    return seq;
+  } else {
+    return LazySeq<T>();
+  }
+  //not infiniteRange(start).take(count);
+  // because it is to slow yet because of permanent allocations that happen due to capturing data of self-type.
 }
 
 template<class T>

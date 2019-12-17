@@ -564,7 +564,7 @@ class LazySeq {
   [[nodiscard]] auto applySkipHelper(wide_size_t count) const;
 
  private:
-  static const wide_size_t BUCKET_SIZE_FOR_STD_SORT_CALL = 256;
+  static const wide_size_t BUCKET_SIZE_FOR_STD_SORT_CALL = 1024;
 
   fabric<T> evaluator_;
   skip_helper_t skipHelper_ = nullptr;

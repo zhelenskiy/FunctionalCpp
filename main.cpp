@@ -111,7 +111,7 @@ void traceCollection(const Container<K, V> &container) {
   std::cout << std::endl;
 }
 }
-/*
+
 void testSmartSkips() {
   trace("testSmartSkips");
   trace(identitySeq(3).skip(1000000000000ull).take(15));
@@ -450,7 +450,7 @@ void testComparisons() {
     trace();
   }
 }
-*/
+
 void testOrder() {
   trace("testOrder");
   trace(range(1, 2000).orderByDescendingByItself());
@@ -542,7 +542,7 @@ void testOrder() {
     trace();
   }
 }
-/*
+
 void testGroupBy() {
   trace("testGroupBy");
   const auto keyFinder = fn1(it % 2);
@@ -931,4 +931,4 @@ void testEmplace() {
   trace("testEmplace");
   trace(range(1, 10).emplaceFront(100));
   trace(range(1, 10).emplaceBack(100));
-}*/
+}
