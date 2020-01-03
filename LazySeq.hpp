@@ -1670,7 +1670,7 @@ constexpr LazySeq<T> range(const T &start, wide_size_t count) {
     return LazySeq<T>();
   }
   //not infiniteRange(start).take(count);
-  // because it is to slow yet because of permanent allocations that happen due to capturing data of self-type.
+  //because it is to slow yet because of additional virtual calls.
 }
 
 template<class T>

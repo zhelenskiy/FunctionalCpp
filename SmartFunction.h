@@ -88,7 +88,8 @@ struct SmartFunction<Res(Args...)> {
   const VTable<Res, Args...> *curVTable;
 
   constexpr SmartFunction() : curVTable(nullptr) {}
-  constexpr SmartFunction(std::nullptr_t) : SmartFunction() {}
+  constexpr SmartFunction(std::nullptr_t)
+      : SmartFunction() {} // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
 
   template<class F>
   explicit SmartFunction(const FunctionHolder<F> &holder) noexcept
@@ -97,8 +98,8 @@ struct SmartFunction<Res(Args...)> {
   }
 
   template<class F>
-  /*implicit*/ SmartFunction(F functor)
-      : SmartFunction<Res(Args...)>(FunctionHolder(std::move(functor))) {} // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+  /*implicit*/ SmartFunction(F functor) // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+      : SmartFunction<Res(Args...)>(FunctionHolder(std::move(functor))) {}
 
   SmartFunction(const SmartFunction &other) : curVTable(other.curVTable) {
     if (curVTable) {
