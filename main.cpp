@@ -8,7 +8,7 @@
 #define ll long long
 
 int main() {
-  /*testRecursion();
+  testRecursion();
   testSizesOfLazySeqs();
   std::vector<int> vec = {1, 2, 3, 4, 5, 6, 10};
   auto lazy = testMakeLazy<int>(vec);
@@ -47,9 +47,8 @@ int main() {
   testEmplace();
   testDistinctUnionExceptIntersect();
   testGroupBy();
-*/
+
   testOrder();
-  /*
   testIndexed();
   testComparisons();
 
@@ -61,7 +60,7 @@ int main() {
   testSimpleFunctions();
   testRandom();
   testSmartSkips();
-*/
+
   return 0;
 }
 

@@ -2,60 +2,136 @@
 // Created by zhele on 23.11.2019.
 //
 
-#ifndef FUNCTIONAL_SMARTFUNCTION_H
-#define FUNCTIONAL_SMARTFUNCTION_H
+#ifndef FUNCTIONAL_SMART_FUNCTION_H
+#define FUNCTIONAL_SMART_FUNCTION_H
 
-#include <iostream>
-#include <variant>
-#include <functional>
-#include <memory>
+#include <thread>
 
-inline const size_t MAX_SMART_FUNCTION_SIZE = 4 * sizeof(int);
+#include <boost/pool/object_pool.hpp>
 
-template<class FuncType>
-class SmartFunction {
-  using StdFunctionType = std::function<FuncType>;
-  std::variant<StdFunctionType, std::shared_ptr<StdFunctionType>> func_ = StdFunctionType();
+template<class T>
+struct Counter {
+  T data;
+  size_t uses = 1;
+  explicit Counter(T data) : data(std::move(data)) {}
+};
+
+template<class F>
+using FunctionalPool = boost::object_pool<Counter<F>>;
+
+template<class F>
+FunctionalPool<F> &getPool() {
+  thread_local FunctionalPool<F> pool;
+  return pool;
+}
+
+template<class F>
+class FunctionHolder {
+  std::thread::id owner = std::this_thread::get_id();
+  Counter<F> *counter;
 
  public:
+  explicit FunctionHolder(Counter<F> *counter) : counter(counter) {}
 
-  SmartFunction() noexcept = default;
-  SmartFunction(const SmartFunction &) = default;
-  SmartFunction(SmartFunction &&) noexcept = default;
-  SmartFunction<FuncType> &operator=(SmartFunction &&) noexcept = default;
-  SmartFunction<FuncType> &operator=(const SmartFunction &) = default;
+  FunctionHolder(const FunctionHolder<F> &other)
+      : counter(owner == other.owner ? (++other.counter->uses, other.counter)
+                                     : (getPool<F>().construct(other.counter->data))) {}
 
-  template<class Func, class = std::enable_if_t<std::is_constructible_v<StdFunctionType, Func>>>
-  /*implicit*/ SmartFunction(Func f) { // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
-    if constexpr (std::is_same_v<Func, StdFunctionType>
-        || (sizeof(f) <= MAX_SMART_FUNCTION_SIZE && std::is_trivially_copyable_v<Func>)) {
-//      std::cout << "bruh\n";
-      func_ = StdFunctionType(std::move(f));
-    } else if constexpr (!std::is_constructible_v<Func, std::nullptr_t>) {
-//      std::cout << "yeap\n";
-      func_ = std::make_shared<StdFunctionType>(std::move(f));
-    } else if (f) {
-//      std::cout << "cool\n";
-      func_ = std::make_shared<StdFunctionType>(std::move(f));
+  template<class T>
+  explicit FunctionHolder(T functor) : counter(getPool<F>().construct(std::move(functor))) {}
+
+  FunctionHolder &operator=(const FunctionHolder &other) {
+    if (this != &other) {
+      auto copy = FunctionHolder(other);
+      std::swap(owner, copy.owner);
+      std::swap(counter, copy.counter);
     }
-//    std::cout << "null\n";
+    return *this;
   }
 
-  explicit operator bool() const noexcept {
-    auto if_func = std::get_if<StdFunctionType>(&func_);
-    return if_func ? static_cast<bool>(*if_func) : true;
-  }
+  template<class... Args>
+  auto operator()(const Args &... args) const { return counter->data(args...); }
 
-  template<class... Args, class R = decltype(StdFunctionType()(std::declval<Args>()...))>
-  R operator()(Args &&... args) const {
-    return std::visit([=](const auto &f) {
-      if constexpr (std::is_same_v<std::decay_t<decltype(f)>, StdFunctionType>) {
-        return f(std::move(args)...);
-      } else {
-        return (*f)(std::move(args)...);
-      }
-    }, func_);
+  ~FunctionHolder() {
+    if (!--counter->uses) {
+      assert(getPool<F>().is_from(counter));
+      getPool<F>().destroy(counter);
+    }
   }
 };
 
-#endif //FUNCTIONAL_SMARTFUNCTION_H
+template<class T>
+FunctionHolder(T &&holder) -> FunctionHolder<std::remove_cv_t<T>>;
+
+template<class Res, class... Args>
+struct VTable {
+  void (*copy)(const void *from, void *to);
+  void (*destruct)(void *f);
+  Res (*invoke)(const void *f, const Args &...);
+};
+
+template<class F, class Res, class... Args>
+constexpr VTable<Res, Args...> vTable = {
+    [](const void *from, void *to) { new(to) F(*static_cast<F const *>(from)); },
+    [](void *f) { static_cast<F *>(f)->~F(); },
+    [](const void *f, const Args &... args) -> Res { return (*static_cast<F const *>(f))(args...); }
+};
+
+template<class T>
+struct SmartFunction;
+
+using FunctionHolderExample = FunctionHolder<int>; // All they have the same size and alignment.
+
+template<class Res, class... Args>
+struct SmartFunction<Res(Args...)> {
+  std::aligned_storage_t<sizeof(FunctionHolderExample), alignof(FunctionHolderExample)> data{};
+  const VTable<Res, Args...> *curVTable;
+
+  constexpr SmartFunction() : curVTable(nullptr) {}
+  constexpr SmartFunction(std::nullptr_t) : SmartFunction() {}
+
+  template<class F>
+  explicit SmartFunction(const FunctionHolder<F> &holder) noexcept
+      : curVTable(&vTable<FunctionHolder<F>, Res, Args...>) {
+    new(&data) FunctionHolder<F>(holder);
+  }
+
+  template<class F>
+  /*implicit*/ SmartFunction(F functor)
+      : SmartFunction<Res(Args...)>(FunctionHolder(std::move(functor))) {} // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+
+  SmartFunction(const SmartFunction &other) : curVTable(other.curVTable) {
+    if (curVTable) {
+      curVTable->copy(&other.data, &data);
+    }
+  }
+
+  ~SmartFunction() {
+    if (curVTable) {
+      curVTable->destruct(&data);
+    }
+  }
+
+  SmartFunction &operator=(const SmartFunction &other) {
+    if (this != &other) {
+      auto copy = SmartFunction(other);
+      std::swap(data, copy.data);
+      std::swap(curVTable, copy.curVTable);
+    }
+    return *this;
+  }
+
+  Res operator()(const Args &... args) const {
+    if (curVTable) {
+      return curVTable->invoke(&data, args...);
+    } else {
+      throw std::bad_function_call();
+    }
+  };
+
+  explicit operator bool() const {
+    return static_cast<bool>(curVTable);
+  }
+};
+
+#endif //FUNCTIONAL_SMART_FUNCTION_H
