@@ -21,7 +21,7 @@ using FunctionalPool = boost::object_pool<Counter<F>>;
 
 template<class F>
 FunctionalPool<F> &getPool() {
-  thread_local FunctionalPool<F> pool;
+  thread_local FunctionalPool<F> pool(12);
   return pool;
 }
 
@@ -50,7 +50,7 @@ class FunctionHolder {
   }
 
   template<class... Args>
-  auto operator()(const Args &... args) const { return counter->data(args...); }
+  auto operator()(Args... args) const { return counter->data(std::forward<Args>(args)...); }
 
   ~FunctionHolder() {
     if (!--counter->uses) {
@@ -67,14 +67,14 @@ template<class Res, class... Args>
 struct VTable {
   void (*copy)(const void *from, void *to);
   void (*destruct)(void *f);
-  Res (*invoke)(const void *f, const Args &...);
+  Res (*invoke)(const void *f, Args...);
 };
 
 template<class F, class Res, class... Args>
 constexpr VTable<Res, Args...> vTable = {
     [](const void *from, void *to) { new(to) F(*static_cast<F const *>(from)); },
     [](void *f) { static_cast<F *>(f)->~F(); },
-    [](const void *f, const Args &... args) -> Res { return (*static_cast<F const *>(f))(args...); }
+    [](const void *f, Args... args) -> Res { return (*static_cast<F const *>(f))(std::forward<Args>(args)...); }
 };
 
 template<class T>
@@ -88,8 +88,8 @@ struct SmartFunction<Res(Args...)> {
   const VTable<Res, Args...> *curVTable;
 
   constexpr SmartFunction() : curVTable(nullptr) {}
-  constexpr SmartFunction(std::nullptr_t)
-      : SmartFunction() {} // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+  constexpr SmartFunction(std::nullptr_t) // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+      : SmartFunction() {}
 
   template<class F>
   explicit SmartFunction(const FunctionHolder<F> &holder) noexcept
@@ -122,9 +122,9 @@ struct SmartFunction<Res(Args...)> {
     return *this;
   }
 
-  Res operator()(const Args &... args) const {
+  Res operator()(Args... args) const {
     if (curVTable) {
-      return curVTable->invoke(&data, args...);
+      return curVTable->invoke(&data, std::forward<Args>(args)...);
     } else {
       throw std::bad_function_call();
     }
