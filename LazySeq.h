@@ -610,7 +610,7 @@ class LazyIterator : public std::iterator<std::input_iterator_tag, T> {
   constexpr T operator->() const;
 
   constexpr LazyIterator<T> &operator++();
-  const LazyIterator<T> operator++(int);
+  LazyIterator<T> operator++(int);
   LazyIterator<T> operator+(wide_size_t count) const;
   LazyIterator<T> operator+=(wide_size_t count);
 
