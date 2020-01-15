@@ -388,7 +388,7 @@ constexpr LazySeq<T> LazySeq<T>::repeat(wide_size_t count) const {
                                  (skipCount % bucketCount != 0 ? skip(skipCount % bucketCount) : LazySeq<T>())
                                  + repeat(resFullCount / bucketCount)};
             });
-    /*.broadcastSkipHelper()*/;
+    /*.broadcastSkipHelper();*/
 }
 
 template<class T>
