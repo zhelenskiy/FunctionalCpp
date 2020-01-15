@@ -6,13 +6,9 @@
 #define FUNCTIONAL_LAZY_SEQ_H
 
 #include <algorithm>
-#include <functional>
 #include <iterator>
-#include <memory>
-#include <stack>
 #include <sstream>
 #include <iostream>
-#include <list>
 #include <chrono>
 #include <random>
 #include <vector>
@@ -53,30 +49,14 @@ using indexed_t = std::pair<wide_size_t, T>;
 template<class T>
 constexpr T identity(const T &x);
 
-template<class Func, class Function, class = void>
-struct is_function : std::false_type {
-};
-
-template<class Func, class Function>
-struct is_function<Func, Function, std::enable_if_t<std::is_constructible_v<std::function<Function>, Func>>>
-        : std::true_type {
-};
-
-template<class Func, class Function>
-const bool is_function_v = is_function<Func, Function>::value;
-
-template<class Func, class Function, class = std::enable_if_t<is_function_v<Func, Function>>>
-struct when_is_function {
-    using lambda = Func;
-    using function = Function;
-    using std_function = std::function<Function>;
-};
+template<class Func, class R, class... Args>
+using when_is_function = std::enable_if_t<std::is_invocable_r_v<R, Func, Args...>>;
 
 template<class Func, class... Args>
 using ResType = decltype(std::declval<Func>()(std::declval<Args>()...));
 
 template<class Func, class... Args>
-using when_is_predicate = when_is_function<Func, bool(Args...)>;
+using when_is_predicate = when_is_function<Func, bool, Args...>;
 
 template<class Func, class T>
 using when_is_comparer = when_is_predicate<Func, T, T>;
@@ -137,7 +117,7 @@ public:
 
     constexpr explicit LazySeq<T>(wide_size_t count, const T &value = T());
 
-    template<class Func, class = when_is_function<Func, T(T)>>
+    template<class Func, class = when_is_function<Func, T, T>>
     constexpr explicit LazySeq<T>(const T &initializer, const Func &next);
 
     constexpr explicit LazySeq<T>(fabric<T> evaluator, skip_helper_t skipHelper = nullptr);
@@ -146,7 +126,7 @@ public:
 
     constexpr explicit LazySeq<T>(const node<T> &node1);
 
-    template<class Func, class = when_is_function<Func, LazySeq<T>()>>
+    template<class Func, class = when_is_function<Func, LazySeq<T>>>
     constexpr explicit LazySeq<T>(const Func &generator);
 
     [[nodiscard]] constexpr LazySeq<T> setSkipHelper(const skip_helper_t &specialSkip) const;
@@ -156,113 +136,105 @@ public:
     template<class Container>
     [[nodiscard]] auto toContainer() const;
 
-    template<class Container, class R>
-    auto toContainer(const std::function<R(T)> &func) const;
+    template<class Container, class F>
+    auto toContainer(const F &func) const;
 
-    template<class Container, class R>
-    auto toContainerByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class Container, class F>
+    auto toContainerByIndex(const F &func) const;
 
-    template<class Container, class K, class V>
-    auto toContainer(const std::function<K(T)> &keyFunc, const std::function<V(T)> &valueFunc) const;
+    template<class Container, class KeyFinder, class ValueFinder>
+    auto toContainer(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class Container, class K, class V>
-    auto toContainerByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                            const std::function<V(indexed_t<T>)> &valueFunc) const;
+    template<class Container, class KeyFinder, class ValueFinder>
+    auto toContainerByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
     [[nodiscard]] std::vector<T> toVector() const;
 
-    template<class R>
-    std::vector<R> toVector(const std::function<R(T)> &func) const;
+    template<class F>
+    auto toVector(const F &func) const;
 
-    template<class R>
-    std::vector<R> toVectorByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toVectorByIndex(const F &func) const;
 
     [[nodiscard]] std::set<T> toSet() const;
 
-    template<class R>
-    std::set<R> toSet(const std::function<R(T)> &func) const;
+    template<class F>
+    auto toSet(const F &func) const;
 
-    template<class R>
-    std::set<R> toSetByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toSetByIndex(const F &func) const;
 
     [[nodiscard]] std::unordered_set<T> toUnorderedSet() const;
 
-    template<class R>
-    std::unordered_set<R> toUnorderedSet(const std::function<R(T)> &func) const;
+    template<class F>
+    auto toUnorderedSet(const F &func) const;
 
-    template<class R>
-    std::unordered_set<R> toUnorderedSetByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toUnorderedSetByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::map<K, V> toMap(const std::function<std::pair<K, V>(T)> &func) const;
+    template<class F>
+    auto toMap(const F &func) const;
 
-    template<class K, class V>
-    std::map<K, V> toMapByIndex(const std::function<std::pair<K, V>(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toMapByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::map<K, V> toMap(const std::function<K(T)> &keyFunc, const std::function<V(T)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::map<K, V> toMapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                const std::function<V(indexed_t<T>)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::unordered_map<K, V> toUnorderedMap(const std::function<std::pair<K, V>(T)> &func) const;
+    template<class F>
+    auto toUnorderedMap(const F &func) const;
 
-    template<class K, class V>
-    std::unordered_map<K, V> toUnorderedMapByIndex(const std::function<std::pair<K, V>(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toUnorderedMapByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::unordered_map<K, V> toUnorderedMap(const std::function<K(T)> &keyFunc,
-                                            const std::function<V(T)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toUnorderedMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::unordered_map<K, V> toUnorderedMapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                                   const std::function<V(indexed_t<T>)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toUnorderedMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    [[nodiscard]] std::multiset<T> toMultiset() const;
+    [[nodiscard]] std::multiset<T> toMultiSet() const;
 
-    template<class R>
-    std::multiset<R> toMultiset(const std::function<R(T)> &func) const;
+    template<class F>
+    auto toMultiSet(const F &func) const;
 
-    template<class R>
-    std::multiset<R> toMultisetByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toMultisetByIndex(const F &func) const;
 
-    [[nodiscard]] std::unordered_multiset<T> toUnorderedMultiset() const;
+    [[nodiscard]] std::unordered_multiset<T> toUnorderedMultiSet() const;
 
-    template<class R>
-    std::unordered_multiset<R> toUnorderedMultiset(const std::function<R(T)> &func) const;
+    template<class F>
+    auto toUnorderedMultiSet(const F &func) const;
 
-    template<class R>
-    std::unordered_multiset<R> toUnorderedMultisetByIndex(const std::function<R(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toUnorderedMultiSetByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::multimap<K, V> toMultimap(const std::function<std::pair<K, V>(T)> &func) const;
+    template<class F>
+    auto toMultiMap(const F &func) const;
 
-    template<class K, class V>
-    std::multimap<K, V> toMultimapByIndex(const std::function<std::pair<K, V>(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toMultiMapByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::multimap<K, V> toMultimap(const std::function<K(T)> &keyFunc, const std::function<V(T)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toMultiMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::multimap<K, V> toMultimapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                          const std::function<V(indexed_t<T>)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toMultiMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::unordered_multimap<K, V> toUnorderedMultimap(const std::function<std::pair<K, V>(T)> &func) const;
+    template<class F>
+    auto toUnorderedMultiMap(const F &func) const;
 
-    template<class K, class V>
-    std::unordered_multimap<K, V> toUnorderedMultimapByIndex(
-            const std::function<std::pair<K, V>(indexed_t<T>)> &func) const;
+    template<class F>
+    auto toUnorderedMultiMapByIndex(const F &func) const;
 
-    template<class K, class V>
-    std::unordered_multimap<K, V> toUnorderedMultimap(const std::function<K(T)> &keyFunc,
-                                                      const std::function<V(T)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toUnorderedMultiMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
-    template<class K, class V>
-    std::unordered_multimap<K, V> toUnorderedMultimapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                                             const std::function<V(indexed_t<T>)> &valueFunc) const;
+    template<class KeyFinder, class ValueFinder>
+    auto toUnorderedMultiMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
     [[nodiscard]] constexpr node_ptr<T> eval() const;
 //  [[nodiscard]] LazySeq<T> broadcastSkipHelper() const;
@@ -311,8 +283,6 @@ public:
     template<class Func, class = when_is_predicate<Func, indexed_t<T>>>
     [[nodiscard]] constexpr LazySeq<T> removeByIndex(const Func &pred) const;
 
-//  template<class R>
-//  constexpr LazySeq<R> mapByNode(const std::function<node<R>(node_ptr<T>)> &f) const;
     template<class Func, class R = typename ResType<Func, node_ptr<T>>::first_type>
     constexpr LazySeq<R> mapByNode(const Func &f) const;
 
@@ -332,12 +302,12 @@ public:
     constexpr auto mapManyByIndex(const Func &func) const;
 
     template<class Mapper, class Predicate,
-            class = when_is_function<Mapper, T(T)>,
+            class = when_is_function<Mapper, T, T>,
             class = when_is_predicate<Predicate, T>>
     constexpr LazySeq<T> mapIf(const Mapper &func, const Predicate &pred) const;
 
     template<class Mapper, class Predicate,
-            class = when_is_function<Mapper, T(indexed_t<T>)>,
+            class = when_is_function<Mapper, T, indexed_t<T>>,
             class = when_is_predicate<Predicate, indexed_t<T>>>
     constexpr LazySeq<T> mapIfByIndex(const Mapper &func, const Predicate &pred) const;
 
@@ -349,10 +319,10 @@ public:
     template<class Func>
     constexpr void foreachByIndex(const Func &func) const;
 
-    template<class Func, class = when_is_function<Func, T(T, T)>>
+    template<class Func, class = when_is_function<Func, T, T, T>>
     T reduce(const Func &func, T &&defaultValue = T()) const;
 
-    template<class R, class Func, class = when_is_function<Func, R(R, T)>>
+    template<class R, class Func, class = when_is_function<Func, R, R, T>>
     R reduce(const R &init, const Func &func) const;
 
     [[nodiscard]] constexpr LazySeq<T> concat(const LazySeq<T> &other) const;

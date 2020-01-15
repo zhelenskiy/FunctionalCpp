@@ -1,5 +1,6 @@
 #include <iostream>
 #include <functional>
+#include <list>
 
 #include "LazySeqLib.h"
 #include "Lambdas.h"
@@ -274,21 +275,21 @@ void testFunctionsByIndex() {
     write(seq.toVectorByIndex(value));
     write(seq.toSetByIndex(value));
     write(seq.toUnorderedSetByIndex(value));
-    write(seq.toUnorderedSetByIndex<std::string>(toString));
+    write(seq.toUnorderedSetByIndex(toString));
     trace();
     write(seq.toMultisetByIndex(value));
-    write(seq.toUnorderedMultisetByIndex(value));
-    write(seq.toUnorderedMultisetByIndex<std::string>(toString));
+    write(seq.toUnorderedMultiSetByIndex(value));
+    write(seq.toUnorderedMultiSetByIndex(toString));
     trace();
     writePairs(seq.toMapByIndex(pairs));
     writePairs(seq.toUnorderedMapByIndex(pairs));
-    writePairs(seq.toMultimapByIndex(pairs));
-    writePairs(seq.toUnorderedMultimapByIndex(pairs));
+    writePairs(seq.toMultiMapByIndex(pairs));
+    writePairs(seq.toUnorderedMultiMapByIndex(pairs));
     trace();
     writePairs(seq.toMapByIndex(value, value));
     writePairs(seq.toUnorderedMapByIndex(value, value));
-    writePairs(seq.toMultimapByIndex(value, value));
-    writePairs(seq.toUnorderedMultimapByIndex(value, value));
+    writePairs(seq.toMultiMapByIndex(value, value));
+    writePairs(seq.toUnorderedMultiMapByIndex(value, value));
     trace();
     trace();
 
@@ -852,37 +853,35 @@ void testToCollectionFunctions() {
     };
     const auto KeyValueFunc = [&valueFunc](int x) { return std::pair{x, valueFunc(x)}; };
 
-    testUnaryCollection<std::vector>("Vector", seq.toVector(), seq.toVector<int>(unaryFunc));
-    testUnaryCollection<std::set>("Set", seq.toSet(), seq.toSet<int>(unaryFunc));
-    testUnaryCollection<std::unordered_set>("Unordered set", seq.toUnorderedSet(), seq.toUnorderedSet<int>(unaryFunc));
-    testUnaryCollection<std::multiset>("Multiset", seq.toMultiset(), seq.toMultiset<int>(unaryFunc));
+    testUnaryCollection<std::vector>("Vector", seq.toVector(), seq.toVector(unaryFunc));
+    testUnaryCollection<std::set>("Set", seq.toSet(), seq.toSet(unaryFunc));
+    testUnaryCollection<std::unordered_set>("Unordered set", seq.toUnorderedSet(), seq.toUnorderedSet(unaryFunc));
+    testUnaryCollection<std::multiset>("Multiset", seq.toMultiSet(), seq.toMultiSet(unaryFunc));
     testUnaryCollection<std::unordered_multiset>("Unordered multiset",
-                                                 seq.toUnorderedMultiset(),
-                                                 seq.toUnorderedMultiset<int>(unaryFunc));
+                                                 seq.toUnorderedMultiSet(),
+                                                 seq.toUnorderedMultiSet(unaryFunc));
 
     testBinaryCollection<std::map>("Map",
-                                   seq.toMap<int, std::string>(KeyValueFunc),
-                                   seq.toMap<int, std::string>(keyFunc, valueFunc));
+                                   seq.toMap(KeyValueFunc),
+                                   seq.toMap(keyFunc, valueFunc));
     testBinaryCollection<std::unordered_map>("Unordered map",
-                                             seq.toUnorderedMap<int, std::string>(KeyValueFunc),
-                                             seq.toUnorderedMap<int, std::string>(keyFunc, valueFunc));
+                                             seq.toUnorderedMap(KeyValueFunc),
+                                             seq.toUnorderedMap(keyFunc, valueFunc));
     testBinaryCollection<std::multimap>("Multimap",
-                                        seq.toMultimap<int, std::string>(KeyValueFunc),
-                                        seq.toMultimap<int, std::string>(keyFunc, valueFunc));
+                                        seq.toMultiMap(KeyValueFunc),
+                                        seq.toMultiMap(keyFunc, valueFunc));
     testBinaryCollection<std::unordered_multimap>("Unordered multimap",
-                                                  seq.toUnorderedMultimap<int, std::string>(KeyValueFunc),
-                                                  seq.toUnorderedMultimap<int, std::string>(keyFunc, valueFunc));
+                                                  seq.toUnorderedMultiMap(KeyValueFunc),
+                                                  seq.toUnorderedMultiMap(keyFunc, valueFunc));
     trace();
     trace("Abstract collection #1");
     traceCollection(range(1, 5).match(range(6, 5)).toContainer<std::map<int, int>>());
-    traceCollection(range(1, 5).match(range(6, 5)).toContainer<std::map<int, int>, std::pair<int, int>>(
+    traceCollection(range(1, 5).match(range(6, 5)).toContainer<std::map<int, int>>(
             identity<std::pair<int, int>>));
     trace("Abstract collection #2");
-    traceCollection(range(1, 5).toContainerByIndex<std::map<wide_size_t, int>, std::pair<wide_size_t, int>>(
-            identity<std::pair<wide_size_t, int>>));
+    traceCollection(range(1, 5).toContainerByIndex<std::map<wide_size_t, int>>(identity<std::pair<wide_size_t, int>>));
     traceCollection(range(1, 5)
-                            .toContainerByIndex<std::map<wide_size_t, int>, wide_size_t, int>(fn1(it.first),
-                                                                                              fn1(it.second)));
+                            .toContainerByIndex<std::map<wide_size_t, int>>(fn1(it.first), fn1(it.second)));
 }
 
 void testReverse() {

@@ -330,14 +330,6 @@ LazyIterator<T> LazyIterator<T>::operator+=(wide_size_t count) {
     return reassign(evaluated, (*this + count).evaluated), *this;
 }
 
-//template<class T>
-//template<class R>
-//constexpr LazySeq<R> LazySeq<T>::mapByNode(const std::function<node<R>(node_ptr<T>)> &f) const {
-//  returnmapByNode([f = f](node_ptr<T>&& node1) -> node_ptr<R> {
-//    return std::optional<node<R>>(f(node1));
-//  });
-//}
-
 template<class T>
 template<class Func, class R>
 constexpr LazySeq<R> LazySeq<T>::mapByNode(const Func &f) const {
@@ -826,72 +818,55 @@ constexpr LazySeq<T> operator*(wide_size_t count, const LazySeq<T> &seq) {
 }
 
 template<class T>
+template<class Container>
+auto LazySeq<T>::toContainer() const {
+    return Container(begin(), end());
+}
+
+template<class T>
+template<class Container, class F>
+auto LazySeq<T>::toContainer(const F &func) const {
+    return map(func).template toContainer<Container>();
+}
+
+template<class T>
+template<class Container, class F>
+auto LazySeq<T>::toContainerByIndex(const F &func) const {
+    return mapByIndex(func).template toContainer<Container>();
+}
+
+template<class T>
+template<class Container, class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toContainer(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    return toContainer<Container>([keyFunc = keyFunc, valueFunc = valueFunc](const T &item) {
+        return std::pair{keyFunc(item), valueFunc(item)};
+    });
+}
+
+template<class T>
+template<class Container, class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toContainerByIndex(const KeyFinder &keyFunc,
+                                    const ValueFinder &valueFunc) const {
+    return toContainerByIndex<Container>([keyFunc = keyFunc, valueFunc = valueFunc](const indexed_t<T> &item) {
+        return std::pair{keyFunc(item), valueFunc(item)};
+    });
+}
+
+template<class T>
 std::vector<T> LazySeq<T>::toVector() const {
     return toContainer<std::vector<T>>();
 }
 
 template<class T>
-template<class R>
-std::vector<R> LazySeq<T>::toVector(const std::function<R(T)> &func) const {
+template<class F>
+auto LazySeq<T>::toVector(const F &func) const {
     return map(func).toVector();
 }
 
 template<class T>
-template<class R>
-std::vector<R> LazySeq<T>::toVectorByIndex(const std::function<R(indexed_t<T>)> &func) const {
+template<class F>
+auto LazySeq<T>::toVectorByIndex(const F &func) const {
     return getIndexed().toVector(func);
-}
-
-template<class T>
-template<class K, class V>
-std::map<K, V> LazySeq<T>::toMap(const std::function<std::pair<K, V>(T)> &func) const {
-    return toContainer<std::map<K, V>, std::pair<K, V>>(func);
-}
-
-template<class T>
-template<class K, class V>
-std::map<K, V> LazySeq<T>::toMapByIndex(const std::function<std::pair<K, V>(indexed_t<T>)> &func) const {
-    return getIndexed().toMap(func);
-}
-
-template<class T>
-template<class K, class V>
-std::map<K, V> LazySeq<T>::toMap(const std::function<K(T)> &keyFunc, const std::function<V(T)> &valueFunc) const {
-    return toContainer<std::map<K, V>, K, V>(keyFunc, valueFunc);
-}
-
-template<class T>
-template<class K, class V>
-std::map<K, V> LazySeq<T>::toMapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                        const std::function<V(indexed_t<T>)> &valueFunc) const {
-    return getIndexed().toMap(keyFunc, valueFunc);
-}
-
-template<class T>
-template<class K, class V>
-std::unordered_map<K, V> LazySeq<T>::toUnorderedMap(const std::function<std::pair<K, V>(T)> &func) const {
-    return toContainer<std::unordered_map<K, V>, std::pair<K, V>>(func);
-}
-
-template<class T>
-template<class K, class V>
-std::unordered_map<K, V> LazySeq<T>::toUnorderedMapByIndex(
-        const std::function<std::pair<K, V>(indexed_t<T>)> &func) const {
-    return getIndexed().toUnorderedMap(func);
-}
-
-template<class T>
-template<class K, class V>
-std::unordered_map<K, V> LazySeq<T>::toUnorderedMap(const std::function<K(T)> &keyFunc,
-                                                    const std::function<V(T)> &valueFunc) const {
-    return toContainer<std::unordered_map<K, V>, K, V>(keyFunc, valueFunc);
-}
-
-template<class T>
-template<class K, class V>
-std::unordered_map<K, V> LazySeq<T>::toUnorderedMapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                                           const std::function<V(indexed_t<T>)> &valueFunc) const {
-    return getIndexed().toUnorderedMap(keyFunc, valueFunc);
 }
 
 template<class T>
@@ -900,27 +875,15 @@ std::set<T> LazySeq<T>::toSet() const {
 }
 
 template<class T>
-template<class R>
-std::set<R> LazySeq<T>::toSet(const std::function<R(T)> &func) const {
+template<class F>
+auto LazySeq<T>::toSet(const F &func) const {
     return map(func).toSet();
 }
 
 template<class T>
-template<class R>
-std::set<R> LazySeq<T>::toSetByIndex(const std::function<R(indexed_t<T>)> &func) const {
+template<class F>
+auto LazySeq<T>::toSetByIndex(const F &func) const {
     return getIndexed().toSet(func);
-}
-
-template<class T>
-template<class R>
-std::unordered_set<R> LazySeq<T>::toUnorderedSet(const std::function<R(T)> &func) const {
-    return map(func).toUnorderedSet();
-}
-
-template<class T>
-template<class R>
-std::unordered_set<R> LazySeq<T>::toUnorderedSetByIndex(const std::function<R(indexed_t<T>)> &func) const {
-    return getIndexed().toUnorderedSet(func);
 }
 
 template<class T>
@@ -929,127 +892,166 @@ std::unordered_set<T> LazySeq<T>::toUnorderedSet() const {
 }
 
 template<class T>
-template<class K, class V>
-std::multimap<K, V> LazySeq<T>::toMultimap(const std::function<std::pair<K, V>(T)> &func) const {
-    return toContainer<std::multimap<K, V>, std::pair<K, V>>(func);
+template<class F>
+auto LazySeq<T>::toUnorderedSet(const F &func) const {
+    return map(func).toUnorderedSet();
 }
 
 template<class T>
-template<class K, class V>
-std::multimap<K, V> LazySeq<T>::toMultimapByIndex(const std::function<std::pair<K, V>(indexed_t<T>)> &func) const {
-    return getIndexed().toMultimap(func);
+template<class F>
+auto LazySeq<T>::toUnorderedSetByIndex(const F &func) const {
+    return getIndexed().toUnorderedSet(func);
 }
 
 template<class T>
-template<class K, class V>
-std::multimap<K, V> LazySeq<T>::toMultimap(const std::function<K(T)> &keyFunc,
-                                           const std::function<V(T)> &valueFunc) const {
-    return toContainer<std::multimap<K, V>, K, V>(keyFunc, valueFunc);
+template<class F>
+auto LazySeq<T>::toMap(const F &func) const {
+    using Res = decltype(func(std::declval<T>()));
+    using K = decltype(std::declval<Res>().first);
+    using V = decltype(std::declval<Res>().second);
+    return toContainer<std::map<K, V>>(func);
 }
 
 template<class T>
-template<class K, class V>
-std::multimap<K, V> LazySeq<T>::toMultimapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                                  const std::function<V(indexed_t<T>)> &valueFunc) const {
-    return getIndexed().toMultimap(keyFunc, valueFunc);
+template<class F>
+auto LazySeq<T>::toMapByIndex(const F &func) const {
+    return getIndexed().toMap(func);
 }
 
 template<class T>
-template<class K, class V>
-std::unordered_multimap<K, V> LazySeq<T>::toUnorderedMultimap(const std::function<std::pair<K, V>(T)> &func) const {
-    return toContainer<std::unordered_multimap<K, V>, std::pair<K, V>>(func);
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    using K = decltype(keyFunc(std::declval<T>()));
+    using V = decltype(valueFunc(std::declval<T>()));
+    return toContainer<std::map<K, V>>(keyFunc, valueFunc);
 }
 
 template<class T>
-template<class K, class V>
-std::unordered_multimap<K, V> LazySeq<T>::toUnorderedMultimapByIndex(
-        const std::function<std::pair<K, V>(indexed_t<T>)> &func) const {
-    return getIndexed().toUnorderedMultimap(func);
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    return getIndexed().toMap(keyFunc, valueFunc);
+}
+
+
+template<class T>
+template<class F>
+auto LazySeq<T>::toUnorderedMap(const F &func) const {
+    using Res = decltype(func(std::declval<T>()));
+    using K = decltype(std::declval<Res>().first);
+    using V = decltype(std::declval<Res>().second);
+    return toContainer<std::unordered_map<K, V>>(func);
 }
 
 template<class T>
-template<class K, class V>
-std::unordered_multimap<K, V> LazySeq<T>::toUnorderedMultimap(const std::function<K(T)> &keyFunc,
-                                                              const std::function<V(T)> &valueFunc) const {
-    return toContainer<std::unordered_multimap<K, V>, K, V>(keyFunc, valueFunc);
+template<class F>
+auto LazySeq<T>::toUnorderedMapByIndex(const F &func) const {
+    return getIndexed().toUnorderedMap(func);
 }
 
 template<class T>
-template<class K, class V>
-std::unordered_multimap<K, V> LazySeq<T>::toUnorderedMultimapByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                                                     const std::function<V(
-                                                                             indexed_t<T>)> &valueFunc) const {
-    return getIndexed().toUnorderedMultimap(keyFunc, valueFunc);
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toUnorderedMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    using K = decltype(keyFunc(std::declval<T>()));
+    using V = decltype(valueFunc(std::declval<T>()));
+    return toContainer<std::unordered_map<K, V>>(keyFunc, valueFunc);
 }
 
 template<class T>
-std::multiset<T> LazySeq<T>::toMultiset() const {
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toUnorderedMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    return getIndexed().toUnorderedMap(keyFunc, valueFunc);
+}
+
+template<class T>
+std::multiset<T> LazySeq<T>::toMultiSet() const {
     return toContainer<std::multiset<T>>();
 }
 
 template<class T>
-template<class R>
-std::multiset<R> LazySeq<T>::toMultiset(const std::function<R(T)> &func) const {
-    return map(func).toMultiset();
+template<class F>
+auto LazySeq<T>::toMultiSet(const F &func) const {
+    return map(func).toMultiSet();
 }
 
 template<class T>
-template<class R>
-std::multiset<R> LazySeq<T>::toMultisetByIndex(const std::function<R(indexed_t<T>)> &func) const {
-    return getIndexed().toMultiset(func);
+template<class F>
+auto LazySeq<T>::toMultisetByIndex(const F &func) const {
+    return getIndexed().toMultiSet(func);
 }
 
 template<class T>
-std::unordered_multiset<T> LazySeq<T>::toUnorderedMultiset() const {
+std::unordered_multiset<T> LazySeq<T>::toUnorderedMultiSet() const {
     return toContainer<std::unordered_multiset<T>>();
 }
 
 template<class T>
-template<class R>
-std::unordered_multiset<R> LazySeq<T>::toUnorderedMultiset(const std::function<R(T)> &func) const {
-    return map(func).toUnorderedMultiset();
+template<class F>
+auto LazySeq<T>::toUnorderedMultiSet(const F &func) const {
+    return map(func).toUnorderedMultiSet();
 }
 
 template<class T>
-template<class R>
-std::unordered_multiset<R> LazySeq<T>::toUnorderedMultisetByIndex(const std::function<R(indexed_t<T>)> &func) const {
-    return getIndexed().toUnorderedMultiset(func);
+template<class F>
+auto LazySeq<T>::toUnorderedMultiSetByIndex(const F &func) const {
+    return getIndexed().toUnorderedMultiSet(func);
 }
 
 template<class T>
-template<class Container>
-auto LazySeq<T>::toContainer() const {
-    return Container(begin(), end());
+template<class F>
+auto LazySeq<T>::toMultiMap(const F &func) const {
+    using Res = decltype(func(std::declval<T>()));
+    using K = decltype(std::declval<Res>().first);
+    using V = decltype(std::declval<Res>().second);
+    return toContainer<std::multimap<K, V>>(func);
 }
 
 template<class T>
-template<class Container, class R>
-auto LazySeq<T>::toContainer(const std::function<R(T)> &func) const {
-    return map(func).template toContainer<Container>();
+template<class F>
+auto LazySeq<T>::toMultiMapByIndex(const F &func) const {
+    return getIndexed().toMultiMap(func);
 }
 
 template<class T>
-template<class Container, class R>
-auto LazySeq<T>::toContainerByIndex(const std::function<R(indexed_t<T>)> &func) const {
-    return mapByIndex(func).template toContainer<Container>();
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toMultiMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    using K = decltype(keyFunc(std::declval<T>()));
+    using V = decltype(valueFunc(std::declval<T>()));
+    return toContainer<std::multimap<K, V>>(keyFunc, valueFunc);
 }
 
 template<class T>
-template<class Container, class K, class V>
-auto LazySeq<T>::toContainer(const std::function<K(T)> &keyFunc, const std::function<V(T)> &valueFunc) const {
-    return toContainer<Container, std::pair<K, V>>([keyFunc = keyFunc, valueFunc = valueFunc](const T &item) {
-        return std::pair{keyFunc(item), valueFunc(item)};
-    });
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toMultiMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    return getIndexed().toMultiMap(keyFunc, valueFunc);
 }
 
 template<class T>
-template<class Container, class K, class V>
-auto LazySeq<T>::toContainerByIndex(const std::function<K(indexed_t<T>)> &keyFunc,
-                                    const std::function<V(indexed_t<T>)> &valueFunc) const {
-    return toContainerByIndex<Container, std::pair<K, V>>([keyFunc = keyFunc,
-                                                                  valueFunc = valueFunc](const indexed_t<T> &item) {
-        return std::pair{keyFunc(item), valueFunc(item)};
-    });
+template<class F>
+auto LazySeq<T>::toUnorderedMultiMap(const F &func) const {
+    using Res = decltype(func(std::declval<T>()));
+    using K = decltype(std::declval<Res>().first);
+    using V = decltype(std::declval<Res>().second);
+    return toContainer<std::unordered_multimap<K, V>>(func);
+}
+
+template<class T>
+template<class F>
+auto LazySeq<T>::toUnorderedMultiMapByIndex(const F &func) const {
+    return getIndexed().toUnorderedMultiMap(func);
+}
+
+template<class T>
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toUnorderedMultiMap(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    using K = decltype(keyFunc(std::declval<T>()));
+    using V = decltype(valueFunc(std::declval<T>()));
+    return toContainer<std::unordered_multimap<K, V>>(keyFunc, valueFunc);
+}
+
+template<class T>
+template<class KeyFinder, class ValueFinder>
+auto LazySeq<T>::toUnorderedMultiMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const {
+    return getIndexed().toUnorderedMultiMap(keyFunc, valueFunc);
 }
 
 template<class T>
@@ -1306,79 +1308,6 @@ template<class KeyFinder, class F>
 LazySeq<std::pair<F, LazySeq<T>>> LazySeq<T>::groupByIndexBy(const KeyFinder &keyFinder) const {
     return getIndexed().groupBy(keyFinder, [](const indexed_t<T> &item) { return item.second; });
 }
-
-/*template<class T>
-template<class Comparer, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const Comparer &comp) const {
-  return makeOrdered().thenBy(comp);
-}
-
-template<class T>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderBy() const {
-  return orderBy(std::less<T>());
-}
-
-template<class T>
-template<class Comp, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const Comp &comp) const {
-  return makeOrdered().thenByDescending(comp);
-}
-
-template<class T>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending() const {
-  return orderByDescending(std::less<T>());
-}
-
-template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const std::function<R(T)> &func, const Func &comp) const {
-  return makeOrdered().thenBy(func, comp);
-}
-
-template<class T>
-template<class R>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderBy(const std::function<R(T)> &func) const {
-  return orderBy(func, std::less<R>());
-}
-
-template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                                  const Func &comp) const {
-  return getIndexed().orderBy(func, comp);
-}
-
-template<class T>
-template<class R>
-constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByIndexBy(const std::function<R(indexed_t<T>)> &func) const {
-  return orderByIndexBy(func, std::less<R>());
-}
-
-template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const std::function<R(T)> &func,
-                                                          const Func &comp) const {
-  return makeOrdered().thenByDescending(func, comp);
-}
-
-template<class T>
-template<class R>
-constexpr OrderedLazySeq<T> LazySeq<T>::orderByDescending(const std::function<R(T)> &func) const {
-  return orderByDescending(func, std::less<R>());
-}
-
-template<class T>
-template<class R, class Func, class>
-constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func,
-                                                                              const Func &comp) const {
-  return getIndexed().orderByDescending(func, comp);
-}
-
-template<class T>
-template<class R>
-constexpr OrderedLazySeq<indexed_t<T>> LazySeq<T>::orderByDescendingByIndexBy(const std::function<R(indexed_t<T>)> &func) const {
-  return orderByDescendingByIndexBy(func, std::less<R>());
-}*/
 
 template<class T>
 template<class Func, class>
@@ -1797,18 +1726,16 @@ LazySeq<rational_t> positiveRationalNumbers() {
     return LazySeq<rational_t>(rational_t{1, 1}, nextGenerator)
             .setSkipHelper(
                     [nextGenerator](wide_size_t count) {
-                        std::function<natural_t(wide_size_t)> fusc;
-                        fusc = [&fusc](wide_size_t count) {
+                        auto fusc = [](auto recur, wide_size_t count) -> natural_t {
                             return count <= 1 ? count
                                               : count % 2 == 0
-                                                ? fusc(count / 2)
-                                                : fusc(count / 2) + fusc(count / 2 + 1);
+                                                ? recur(recur, count / 2)
+                                                : recur(recur, count / 2) + recur(recur, count / 2 + 1);
                         };
                         return std::pair{(wide_size_t) 0,
-                                         LazySeq<rational_t>(rational_t{fusc(count + 1), fusc(count + 2)},
-                                                             nextGenerator)};
+                                         LazySeq<rational_t>(rational_t{fusc(fusc, count + 1),
+                                                                        fusc(fusc, count + 2)}, nextGenerator)};
                     })
-
         /*.broadcastSkipHelper()*/;
 }
 

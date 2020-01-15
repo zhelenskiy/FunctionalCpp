@@ -11,6 +11,7 @@
 #include <mutex>
 #include <optional>
 #include <atomic>
+#include <functional>
 
 #include "LazySeq.h"
 
