@@ -152,6 +152,21 @@ void testSmartSkips() {
     trace(range(1, 10).concat(range(100, 10)).skip(10));
     trace(range(1, 10).concat(range(100, 10)).skip(0));
     trace(join(LazySeq(10, debug_wrapper<std::vector<int>>(1000000, 3))).skip(9999990));
+    /* Copies the vector 3 times:
+     * skip
+     *  |
+     *  V
+     * getting current internal LazySeq to check if it is empty, and if not so, then to try to skip within it
+     *  |
+     *  V
+     * checking if vector exists
+     *  |
+     *  V
+     * evaluating the vector
+     *  |
+     *  V
+     * /F to RAM
+     * */
     std::vector<int> simpleVector = range(1, 10).toVector();
     trace(join(LazySeq(10, simpleVector)).skip(89));
     trace(join(LazySeq(10, simpleVector)).skip(90));

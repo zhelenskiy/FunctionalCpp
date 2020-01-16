@@ -90,6 +90,8 @@ public:
     //TODO const auto& -> auto&& && check with 'valgrind --tool=massif'
     //TODO identity<...> -> identity
     //TODO ...ByIndex -> auto deduce with 'if constexpr'
+    //TODO make node_ptr easy copyable (node_ptr<std::vector> -> :-( )
+    //TODO set smart functions to check: emptiness, [having fast skipHelpers], time of their evaluating, length
 
     typedef LazyIterator<T> const_iterator;
     typedef T value_type;

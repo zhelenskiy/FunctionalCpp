@@ -92,7 +92,7 @@ struct SmartFunction;
 
 using FunctionHolderExample = FunctionHolder<int>; // All they have the same size and alignment.
 
-constexpr size_t SmallObjectSize = 64;
+constexpr size_t SmallObjectSize = 4 * sizeof(size_t);
 
 constexpr size_t FunctionStorageSize = std::max(SmallObjectSize, sizeof(FunctionHolderExample));
 
