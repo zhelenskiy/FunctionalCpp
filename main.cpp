@@ -110,6 +110,16 @@ namespace {
         }
         std::cout << std::endl;
     }
+
+    template<class T>
+    struct debug_wrapper : public T {
+        template<class... Args>
+        explicit debug_wrapper(Args... args) : T(std::move(args)...) {}
+
+        debug_wrapper(const debug_wrapper &) = default;
+
+        debug_wrapper(debug_wrapper &&) noexcept = default;
+    };
 }
 
 void testSmartSkips() {
@@ -141,7 +151,7 @@ void testSmartSkips() {
     trace(LazySeq(1000000ull, 1).concat(LazySeq{0, 0, 0}).skip(1000010));
     trace(range(1, 10).concat(range(100, 10)).skip(10));
     trace(range(1, 10).concat(range(100, 10)).skip(0));
-    trace(join(LazySeq(10, std::vector(1000000, 3))).skip(9999990));
+    trace(join(LazySeq(10, debug_wrapper<std::vector<int>>(1000000, 3))).skip(9999990));
     std::vector<int> simpleVector = range(1, 10).toVector();
     trace(join(LazySeq(10, simpleVector)).skip(89));
     trace(join(LazySeq(10, simpleVector)).skip(90));

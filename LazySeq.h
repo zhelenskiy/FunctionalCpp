@@ -87,6 +87,9 @@ public:
     //TODO check laziness with natural numbers
     //TODO add ...OrDefault method versions
     //DONE simplify lambdas (c++14)
+    //TODO const auto& -> auto&& && check with 'valgrind --tool=massif'
+    //TODO identity<...> -> identity
+    //TODO ...ByIndex -> auto deduce with 'if constexpr'
 
     typedef LazyIterator<T> const_iterator;
     typedef T value_type;
@@ -104,7 +107,7 @@ public:
 
     using skip_helper_t = SmartFunction<std::pair<wide_size_t, LazySeq<T>>(wide_size_t)>;
 
-    /*implicit */LazySeq<T>(std::initializer_list<T> list);
+    constexpr /*implicit */LazySeq<T>(std::initializer_list<T> list);
 
     template<class Iter, class... Args>
     constexpr LazySeq<T>(Iter first, Iter last, Args... captured);
@@ -115,16 +118,16 @@ public:
 
     constexpr LazySeq<T>(LazySeq<T> &&) noexcept = default;
 
-    constexpr explicit LazySeq<T>(wide_size_t count, const T &value = T());
+    constexpr explicit LazySeq<T>(wide_size_t count, T value = T());
 
     template<class Func, class = when_is_function<Func, T, T>>
     constexpr explicit LazySeq<T>(const T &initializer, const Func &next);
 
     constexpr explicit LazySeq<T>(fabric<T> evaluator, skip_helper_t skipHelper = nullptr);
 
-    constexpr explicit LazySeq<T>(const node_ptr<T> &nodePtr);
+    constexpr explicit LazySeq<T>(node_ptr<T> nodePtr);
 
-    constexpr explicit LazySeq<T>(const node<T> &node1);
+    constexpr explicit LazySeq<T>(node<T> node1);
 
     template<class Func, class = when_is_function<Func, LazySeq<T>>>
     constexpr explicit LazySeq<T>(const Func &generator);
@@ -562,7 +565,7 @@ public:
 
     constexpr LazySeq<T> &operator+=(const LazySeq<T> &other);
 
-    constexpr LazySeq<T> &operator+=(const T &item);
+    constexpr LazySeq<T> &operator+=(T &&item);
 
     constexpr LazySeq<T> &operator*=(wide_size_t count);
 
@@ -698,7 +701,7 @@ private:
     fabric<T> evaluator_;
     skip_helper_t skipHelper_ = nullptr;
 
-    static node_ptr<T> broadcastSkipHelper(node_ptr<T> &&evaluated, skip_helper_t skipper, wide_size_t i = 0);
+    static void broadcastSkipHelper(node_ptr<T> &evaluated, skip_helper_t skipper, wide_size_t i = 0);
 
     template<class Func, class = when_is_comparer<Func, T>>
     static auto partition(typename std::vector<T>::iterator begin,
@@ -762,7 +765,7 @@ template<class LazySeq>
 constexpr auto operator+(const LazySeq &a, const LazySeq &b);
 
 template<class T>
-constexpr LazySeq<T> operator+(const LazySeq<T> &a, const T &item);
+constexpr LazySeq<T> operator+(const LazySeq<T> &a, T &&item);
 
 template<class T>
 constexpr LazySeq<T> operator*(const LazySeq<T> &a, wide_size_t count);
@@ -814,7 +817,7 @@ template<class T>
 constexpr LazySeq<T> operator*(wide_size_t count, const LazySeq<T> &seq);
 
 template<class T>
-constexpr LazySeq<T> operator+(const T &item, const LazySeq<T> &seq);
+constexpr LazySeq<T> operator+(T &&item, const LazySeq<T> &seq);
 
 template<class T>
 constexpr LazySeq<T> range(const T &start, wide_size_t count);
