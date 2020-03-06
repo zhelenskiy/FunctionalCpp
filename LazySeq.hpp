@@ -1453,9 +1453,9 @@ namespace {
     template<class T, wide_size_t n>
     struct Pow {
         constexpr static auto invoke(const LazySeq<T> &seq) {
-            using TFirst = typename decltype(Pow<T, n / 2>::invoke(seq))::value_type;
-            using TSecond = typename decltype(Pow<T, n - n / 2>::invoke(seq))::value_type;
-            using TRes = decltype(std::tuple_cat(std::declval<TFirst>(), std::declval<TSecond>()));
+//            using TFirst = typename decltype(Pow<T, n / 2>::invoke(seq))::value_type;
+//            using TSecond = typename decltype(Pow<T, n - n / 2>::invoke(seq))::value_type;
+//            using TRes = decltype(std::tuple_cat(std::declval<TFirst>(), std::declval<TSecond>()));
             return (Pow<T, n / 2>::invoke(seq) * Pow<T, n - n / 2>::invoke(seq))
                     .map([](auto &&pair) { return std::tuple_cat(std::move(pair.first), std::move(pair.second)); });
         }

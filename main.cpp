@@ -870,6 +870,13 @@ void testBinaryCollection(const std::string &name,
 void testToCollectionFunctions() {
     trace("testToCollectionFunctions");
     auto seq = 2 * range(1, 10);
+    auto[it1, it2, it3] = seq.toTuple<3>();
+    trace(LazySeq{it1, it2, it3});
+    try {
+        auto[a] = LazySeq<int>().toTuple<1>();
+        assert(false);
+    } catch (std::out_of_range &) {}
+
     auto unaryFunc = partial(std::multiplies<>(), 2);
     auto keyFunc = identity<int>;
     const auto valueFunc = [](int x) {

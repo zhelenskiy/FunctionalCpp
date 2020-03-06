@@ -241,6 +241,19 @@ public:
     template<class KeyFinder, class ValueFinder>
     auto toUnorderedMultiMapByIndex(const KeyFinder &keyFunc, const ValueFinder &valueFunc) const;
 
+    template<size_t n>
+    auto toTuple() const {
+        if constexpr (n == 0) {
+            return std::tuple<>();
+        } else {
+            auto cur = eval();
+            if (!cur.has_value()) {
+                throw std::out_of_range("Not enough items in lazy sequence!");
+            }
+            return std::tuple_cat(std::tuple{std::move(cur->first)}, cur->second.template toTuple<n - 1>());
+        }
+    }
+
     [[nodiscard]] constexpr node_ptr<T> eval() const;
 //  [[nodiscard]] LazySeq<T> broadcastSkipHelper() const;
 
